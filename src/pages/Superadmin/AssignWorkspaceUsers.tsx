@@ -114,6 +114,29 @@ export default function AssignWorkspaceUsers() {
     );
   };
 
+  const assignedWorkspacesNamesTemplate = (rowData) => {
+    const assignedIds = rowData.assigned_workspace_ids || [];
+    const assignedWorkspaces = workspaces.filter(ws => assignedIds.includes(ws.id));
+
+    if (assignedWorkspaces.length === 0) {
+      return <span className="text-gray-400 text-xs italic">None</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap gap-1.5 max-w-[250px]">
+        {assignedWorkspaces.map(ws => (
+          <span 
+            key={ws.id} 
+            className="px-2 py-0.5 bg-green-50 border border-green-200 text-green-700 text-xs font-medium rounded shadow-sm truncate max-w-[120px]"
+            title={ws.workspace_name}
+          >
+            {ws.workspace_name}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   const assignedCountTemplate = (rowData) => {
     const count = (rowData.assigned_workspace_ids || []).length;
     return (
@@ -158,15 +181,15 @@ export default function AssignWorkspaceUsers() {
           rowsPerPageOptions={[5, 10, 25, 50]}
           loading={loading}
           filters={filters}
-          globalFilterFields={["full_name", "email", "company_name"]}
+          globalFilterFields={["full_name", "email"]}
           stripedRows
           emptyMessage="No users found."
           className="custom-table"
         >
           <Column field="full_name" header="Name" sortable />
           <Column field="email" header="Email" sortable />
-          <Column field="company_name" header="Company" sortable />
-          <Column header="Assigned Workspaces" body={assignedCountTemplate} align="center" />
+          <Column header="Assigned Workspaces" body={assignedWorkspacesNamesTemplate} />
+          <Column header="Usage" body={assignedCountTemplate} align="center" />
           <Column header="Add Workspace" body={actionBodyTemplate} />
         </DataTable>
       </div>
