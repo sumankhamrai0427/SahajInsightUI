@@ -187,7 +187,7 @@ export default function UploadPage() {
         className="text-center text-xl font-semibold"
         style={{ color: theme.primaryText }}
       >
-        Upload your data
+        Connector
       </h2>
 
       <p

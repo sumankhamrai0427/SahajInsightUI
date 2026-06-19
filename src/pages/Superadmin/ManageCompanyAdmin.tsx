@@ -48,7 +48,7 @@ function ManageCompanyAdmin() {
       header: "Address",
       sortable: true,
       body: (row: any) => {
-        if (!row.address) return null;   
+        if (!row.address) return null;
 
         let addrText = "";
 
@@ -84,11 +84,10 @@ function ManageCompanyAdmin() {
       sortable: true,
       body: (row: any) => (
         <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            row.is_active === 1
+          className={`px-2 py-1 rounded-full text-xs font-medium ${row.is_active === 1
               ? "bg-green-100 text-green-800"
               : "bg-red-100 text-red-800"
-          }`}
+            }`}
         >
           {row.is_active === 1 ? "Active" : "Inactive"}
         </span>

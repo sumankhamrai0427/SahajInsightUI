@@ -30,7 +30,7 @@ const menuItems = [
   { name: "Company", icon: ApartmentIcon, path: "manage-companies", roles: ["superadmin"], },
   { name: "Dashboard", icon: DashboardRoundedIcon, path: "dashboard", roles: ["companyadmin", "user"] },
   { name: "Add User", icon: person_add, path: "manage-company-users", roles: ["companyadmin"] },
-  { name: "Upload", icon: FileUploadOutlinedIcon, path: "upload", roles: ["user"] },
+  { name: "Connector", icon: FileUploadOutlinedIcon, path: "upload", roles: ["user"] },
   { name: "Speak to your data", icon: DataObjectRoundedIcon, path: "query-list", roles: ["user"] },
   // { name: "Report Designer", icon: SummarizeOutlinedIcon, path: "report-designer", roles: ["user"] },
   // { name: "Report Scheduler", icon: HourglassTopTwoToneIcon , path: "report-scheduler" , roles: ["user"] },
