@@ -180,6 +180,9 @@ updateSEO(body){
   getAllUsersWorkspace(body) {
     return axios.post(POST_APIS.all_users_workspace, body);
   }
+  summarizeSources(body) {
+    return axios.post(POST_APIS.summarize_sources, body);
+  }
 }
 
 export default new ApiServices();
