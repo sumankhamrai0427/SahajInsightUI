@@ -1,0 +1,114 @@
+/* Header Styling */
+.p-datatable .p-datatable-thead>tr>th {
+  background: #f3f4f6 !important;
+  font-weight: 600;
+  border: none !important;
+  padding: 10px 16px !important;
+  text-align: left !important;
+}
+
+/* Sort Icon Styling */
+.p-datatable .p-sortable-column .p-sortable-column-icon {
+  font-size: 0.7rem !important;
+  /* Decrease icon size */
+  width: 0.7rem !important;
+  height: 0.7rem !important;
+  margin-left: 0.3rem !important;
+}
+
+.p-datatable .p-column-header-content {
+  display: flex;
+  align-items: center;
+}
+
+.custom-table {
+  position: relative;
+  background-color: white !important;
+  border-radius: 0.75rem !important;
+}
+
+
+.custom-table .p-datatable-loading-overlay {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+
+/* Rows */
+.p-datatable .p-datatable-tbody>tr>td {
+  padding: 8px 16px !important;
+  border: none !important;
+  color: var(--theme-primary-text) !important;
+}
+
+/* Hover */
+.p-datatable .p-datatable-tbody>tr:hover {
+  background: var(--theme-background) !important;
+}
+
+/* Remove table outer borders */
+.p-datatable-wrapper {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+/* Hide default paginator */
+.p-datatable .p-paginator {
+  display: none !important;
+}
+
+/* Paginator Styling */
+.custom-paginator {
+  background: var(--theme-surface) !important;
+  border: none !important;
+  padding: 1rem !important;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom-left-radius: 0.75rem;
+  border-bottom-right-radius: 0.75rem;
+}
+
+.custom-paginator .p-paginator-current {
+  color: var(--theme-secondary-text) !important;
+  font-size: 0.875rem;
+}
+
+.custom-paginator .p-paginator-page,
+.custom-paginator .p-paginator-prev,
+.custom-paginator .p-paginator-next {
+  min-width: 2.5rem !important;
+  height: 2.5rem !important;
+  border-radius: 0.5rem !important;
+  color: var(--theme-secondary-text) !important;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.custom-paginator .p-paginator-page:hover,
+.custom-paginator .p-paginator-prev:hover,
+.custom-paginator .p-paginator-next:hover {
+  background-color: #f3f4f6 !important;
+  /* A light gray for hover */
+  color: var(--theme-primary-text) !important;
+}
+
+.custom-paginator .p-paginator-page.p-highlight {
+  background-color: #7b96c7 !important;
+  /* Your primary purple color */
+  color: white !important;
+  font-weight: 600;
+}
+
+.custom-paginator .p-dropdown {
+  height: 2.5rem !important;
+  border-radius: 0.5rem !important;
+  border-color: #e5e7eb !important;
+}
+
+.custom-paginator .p-dropdown .p-dropdown-label {
+  color: var(--theme-secondary-text) !important;
+  font-size: 0.875rem;
+}
