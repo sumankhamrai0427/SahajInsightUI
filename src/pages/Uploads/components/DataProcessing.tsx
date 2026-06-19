@@ -38,16 +38,24 @@ export default function DataProcessing({ files, onRefresh }: Props) {
     severity: "success" | "error" | "warning" | "info";
   }>({ open: false, message: "", severity: "success" });
 
-
   const ITEMS_PER_PAGE = 5;
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const csvFiles = files.filter(f => f.file_type !== "web_search");
+  const webSearchFiles = files.filter(f => f.file_type === "web_search");
 
-  const totalPages = Math.ceil(files.length / ITEMS_PER_PAGE) || 1; // At least 1 page
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, files.length);
+  const [csvPage, setCsvPage] = useState(1);
+  const [webPage, setWebPage] = useState(1);
 
-  const paginatedFiles = files.slice(startIndex, endIndex);
+  const csvTotalPages = Math.ceil(csvFiles.length / ITEMS_PER_PAGE) || 1;
+  const csvStartIndex = (csvPage - 1) * ITEMS_PER_PAGE;
+  const csvEndIndex = Math.min(csvStartIndex + ITEMS_PER_PAGE, csvFiles.length);
+  const paginatedCsvFiles = csvFiles.slice(csvStartIndex, csvEndIndex);
+
+  const webTotalPages = Math.ceil(webSearchFiles.length / ITEMS_PER_PAGE) || 1;
+  const webStartIndex = (webPage - 1) * ITEMS_PER_PAGE;
+  const webEndIndex = Math.min(webStartIndex + ITEMS_PER_PAGE, webSearchFiles.length);
+  const paginatedWebFiles = webSearchFiles.slice(webStartIndex, webEndIndex);
+
   const [fileDependencies, setFileDependencies] = useState<string | null>(null);
 
   const handleRowClick = (file: any) => {
@@ -71,9 +79,6 @@ export default function DataProcessing({ files, onRefresh }: Props) {
     }
   };
 
-
-
-
   const formatTo12Hour = (timeStr) => {
     if (!timeStr) return "";
     const [hour, minute, second] = timeStr.split(":");
@@ -84,9 +89,9 @@ export default function DataProcessing({ files, onRefresh }: Props) {
   };
 
   useEffect(() => {
-    setCurrentPage(1);
+    setCsvPage(1);
+    setWebPage(1);
   }, [files]);
-
 
   useEffect(() => {
     const initialProgress: Record<string, number> = {};
@@ -160,26 +165,10 @@ export default function DataProcessing({ files, onRefresh }: Props) {
         return;
       }
 
-      // if (res?.data?.dependencies?.length) {
-      //   const tables = res.data.dependencies
-      //     .map((d: any) => d.table_name)
-      //     .filter((name: string) => name && name.trim()) // Filter out empty/undefined names
-      //     .join(", ");
-
-      //   const message = tables
-      //     ? `Cannot delete this file.\n\nIt is used by tables:\n${tables}`
-      //     : `Cannot delete this file.\n\nIt is used by other tables.`;
-
-      //   setFileDependencies(message);
-      //   return;
-      // }
-
-      //  show ONLY backend message
       if (!res?.isSuccess && res?.message) {
         setFileDependencies(res.message);
         return;
       }
-
 
       alert(res?.message || "Unable to delete file");
       setIsConfirmSaveModalOpen(false);
@@ -192,328 +181,527 @@ export default function DataProcessing({ files, onRefresh }: Props) {
     }
   };
 
-
   return (
-    <div className="mt-6">
-      <div className="flex items-center justify-between mb-2">
-        <label
-          className="block text-sm font-medium"
-          style={{ color: theme.primaryText }}
-        >
-          Uploaded Files
-        </label>
-        <Tippy content="Refresh" theme="gray">
-          <div
-            onClick={handleRefresh}
-            className={`relative text-center border rounded-xl w-10 h-10 flex items-center justify-center transition-colors ${isRefreshing
-              ? "cursor-not-allowed"
-              : "cursor-pointer hover:bg-gray-500/10"
-              }`}
-            style={{ borderColor: theme.border }}
+    <div className="mt-6 space-y-12">
+      {/* -------------------- SECTION 1: UPLOADED FILES (CSV) -------------------- */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <label
+            className="block text-sm font-semibold"
+            style={{ color: theme.primaryText }}
           >
-            {isRefreshing ? (
-              <AutorenewRoundedIcon
-                className="w-5 h-5 animate-spin"
-                sx={{ color: theme.secondaryText }}
-              />
-            ) : (
-              <AutorenewRoundedIcon
-                className="w-5 h-5"
-                sx={{
-                  color: theme.secondaryText,
-                  "&:hover": { color: theme.primaryText },
-                }}
-              />
-            )}
-          </div>
-        </Tippy>
-      </div>
-
-      {/* Global Column Headers */}
-      <div className="mb-3 overflow-x-auto">
-        <div className="flex items-center justify-between gap-4 px-4 py-2 rounded-xl" style={{ backgroundColor: theme.border + '20' }}>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
-              File Name
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
-              Table Name
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
-              Rows Affected
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
-              Connected Queries
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
-              Connected Reports
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-              Table Extraction
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-              Column Extraction
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-              Data Insert Status
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-              File Size
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-              Created Date
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-              Uploaded At
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-              Status
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-              Action
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Files List - No fixed height, no vertical scrolling */}
-      <div className="overflow-x-auto pr-2">
-        {paginatedFiles.map((file, index) => {
-          const fileName = file.name || file.file_name;
-          const currentProgress = processingProgress[fileName] || 0;
-          const isFullyProcessed = currentProgress >= TOTAL_STEPS;
-
-          const extractionFailed =
-            file.table_extraction_status?.toLowerCase() === "failed" ||
-            file.table_extraction_status?.toLowerCase() === "pending";
-
-          return (
+            Uploaded Files
+          </label>
+          <Tippy content="Refresh" theme="gray">
             <div
-              key={index}
-              onClick={() => handleRowClick(file)}
-              className="rounded-xl p-4 w-full mb-3 bg-gray-200 hover:bg-gray-300 transition-colors duration-200 cursor-pointer"
+              onClick={handleRefresh}
+              className={`relative text-center border rounded-xl w-10 h-10 flex items-center justify-center transition-colors ${isRefreshing
+                ? "cursor-not-allowed"
+                : "cursor-pointer hover:bg-gray-500/10"
+                }`}
+              style={{ borderColor: theme.border }}
             >
-              <div className="flex items-center justify-between gap-4">
-                {/* File Name */}
+              {isRefreshing ? (
+                <AutorenewRoundedIcon
+                  className="w-5 h-5 animate-spin"
+                  sx={{ color: theme.secondaryText }}
+                />
+              ) : (
+                <AutorenewRoundedIcon
+                  className="w-5 h-5"
+                  sx={{
+                    color: theme.secondaryText,
+                    "&:hover": { color: theme.primaryText },
+                  }}
+                />
+              )}
+            </div>
+          </Tippy>
+        </div>
+
+        {csvFiles.length === 0 ? (
+          <div 
+            className="rounded-xl p-8 text-center border border-dashed text-sm"
+            style={{ 
+              borderColor: theme.border, 
+              color: theme.secondaryText,
+              backgroundColor: theme.surface 
+            }}
+          >
+            No uploaded files found.
+          </div>
+        ) : (
+          <>
+            {/* Global Column Headers */}
+            <div className="mb-3 overflow-x-auto">
+              <div className="flex items-center justify-between gap-4 px-4 py-2 rounded-xl" style={{ backgroundColor: theme.border + '20' }}>
                 <div className="flex-1 min-w-0">
-                  <div className="relative group">
-                    <div
-                      className="text-sm font-medium truncate"
-                      style={{ color: theme.primaryText }}
-                    >
-                      {fileName}
-                    </div>
-                    <div className="absolute left-0 mt-1 hidden group-hover:block whitespace-nowrap bg-[#888585] text-white text-xs px-2 py-1 rounded shadow-lg z-10">
-                      {fileName}
-                    </div>
+                  <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
+                    File Name
                   </div>
                 </div>
-
-                {/* Table Name */}
                 <div className="flex-1 min-w-0">
-                  <div
-                    className="text-sm font-medium truncate"
-                    style={{ color: theme.primaryText }}
-                  >
-                    {file.table_name || 'N/A'}
+                  <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
+                    Table Name
                   </div>
                 </div>
-
-                {/* Rows Affected */}
                 <div className="flex-1 min-w-0">
-                  <div
-                    className="text-sm font-medium"
-                    style={{ color: theme.primaryText }}
-                  >
-                    {file.rows_effected || 0}
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Rows Affected
                   </div>
                 </div>
-                {/* Connected Queries */}
                 <div className="flex-1 min-w-0">
-                  <div
-                    className="text-sm font-medium text-center"
-                    style={{ color: theme.primaryText }}
-                  >
-                    {file.connected_queries ?? 0}
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Connected Queries
                   </div>
                 </div>
-
-                {/* Connected Reports */}
                 <div className="flex-1 min-w-0">
-                  <div
-                    className="text-sm font-medium text-center"
-                    style={{ color: theme.primaryText }}
-                  >
-                    {file.connected_reports ?? 0}
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Connected Reports
                   </div>
                 </div>
-
-                {/* Table Extraction Status */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-center">
-                    {extractionFailed ? (
-                      <span className="text-red-500 text-xs font-medium">Failed</span>
-                    ) : file.table_extraction_status?.toLowerCase() === 'done' ? (
-                      <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
-                    ) : (
-                      <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
-                    )}
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Table Extraction
                   </div>
                 </div>
-
-                {/* Column Extraction Status */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-center">
-                    {file.column_extraction_status?.toLowerCase() === 'done' ? (
-                      <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
-                    ) : (
-                      <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
-                    )}
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Column Extraction
                   </div>
                 </div>
-
-                {/* Data Insert Status */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-center">
-                    {file.data_insert_status?.toLowerCase() === 'done' ? (
-                      <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
-                    ) : (
-                      <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
-                    )}
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Data Insert Status
                   </div>
                 </div>
-
-                {/* File Size */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
-                    {file.file_size_mb || (file.size ? `${(file.size / (1024 * 1024)).toFixed(2)}MB` : 'N/A')}
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    File Size
                   </div>
                 </div>
-
-                {/* Create Date */}
                 <div className="flex-1 min-w-0">
-                  <div
-                    className="text-sm font-medium text-center"
-                    style={{ color: theme.primaryText }}
-                  >
-                    {file.created_date || "N/A"}
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Created Date
                   </div>
                 </div>
-
-                {/* Uploaded At */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
-                    {formatTo12Hour(file.created_at) || new Date().toLocaleDateString()}
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Uploaded At
                   </div>
                 </div>
-
-                {/* Status */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
-                    {file.status || 'processed'}
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Status
                   </div>
                 </div>
-
-                {/* Delete Icon */}
-                <div className="flex-1 min-w-0 flex justify-center">
-                  <Tippy content="Delete file" theme="gray">
-                    <DeleteIcon
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteFile(file);
-                        setFileDependencies(null);
-                        setIsConfirmSaveModalOpen(true);
-                      }}
-                      sx={{
-                        fontSize: 20,
-                        color: "#9ca3af",
-                        cursor: "pointer",
-                        "&:hover": {
-                          color: "#ef4444",
-                        },
-                      }}
-                    />
-                  </Tippy>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Action
+                  </div>
                 </div>
-
               </div>
             </div>
-          );
-        })}
+
+            {/* Files List - No fixed height, no vertical scrolling */}
+            <div className="overflow-x-auto pr-2">
+              {paginatedCsvFiles.map((file, index) => {
+                const fileName = file.name || file.file_name;
+                const currentProgress = processingProgress[fileName] || 0;
+                const isFullyProcessed = currentProgress >= TOTAL_STEPS;
+
+                const extractionFailed =
+                  file.table_extraction_status?.toLowerCase() === "failed" ||
+                  file.table_extraction_status?.toLowerCase() === "pending";
+
+                return (
+                  <div
+                    key={index}
+                    onClick={() => handleRowClick(file)}
+                    className="rounded-xl p-4 w-full mb-3 bg-gray-200 hover:bg-gray-300 transition-colors duration-200 cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      {/* File Name */}
+                      <div className="flex-1 min-w-0">
+                        <div className="relative group">
+                          <div
+                            className="text-sm font-medium truncate"
+                            style={{ color: theme.primaryText }}
+                          >
+                            {fileName}
+                          </div>
+                          <div className="absolute left-0 mt-1 hidden group-hover:block whitespace-nowrap bg-[#888585] text-white text-xs px-2 py-1 rounded shadow-lg z-10">
+                            {fileName}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Table Name */}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-medium truncate"
+                          style={{ color: theme.primaryText }}
+                        >
+                          {file.table_name || 'N/A'}
+                        </div>
+                      </div>
+
+                      {/* Rows Affected */}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-medium text-center"
+                          style={{ color: theme.primaryText }}
+                        >
+                          {file.rows_effected || 0}
+                        </div>
+                      </div>
+                      {/* Connected Queries */}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-medium text-center"
+                          style={{ color: theme.primaryText }}
+                        >
+                          {file.connected_queries ?? 0}
+                        </div>
+                      </div>
+
+                      {/* Connected Reports */}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-medium text-center"
+                          style={{ color: theme.primaryText }}
+                        >
+                          {file.connected_reports ?? 0}
+                        </div>
+                      </div>
+
+                      {/* Table Extraction Status */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-center">
+                          {extractionFailed ? (
+                            <span className="text-red-500 text-xs font-medium">Failed</span>
+                          ) : file.table_extraction_status?.toLowerCase() === 'done' ? (
+                            <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
+                          ) : (
+                            <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Column Extraction Status */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-center">
+                          {file.column_extraction_status?.toLowerCase() === 'done' ? (
+                            <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
+                          ) : (
+                            <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Data Insert Status */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-center">
+                          {file.data_insert_status?.toLowerCase() === 'done' ? (
+                            <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
+                          ) : (
+                            <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* File Size */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
+                          {file.file_size_mb || (file.size ? `${(file.size / (1024 * 1024)).toFixed(2)}MB` : 'N/A')}
+                        </div>
+                      </div>
+
+                      {/* Create Date */}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-medium text-center"
+                          style={{ color: theme.primaryText }}
+                        >
+                          {file.created_date || "N/A"}
+                        </div>
+                      </div>
+
+                      {/* Uploaded At */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
+                          {formatTo12Hour(file.created_at) || new Date().toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
+                          {file.status || 'processed'}
+                        </div>
+                      </div>
+
+                      {/* Delete Icon */}
+                      <div className="flex-1 min-w-0 flex justify-center">
+                        <Tippy content="Delete file" theme="gray">
+                          <DeleteIcon
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteFile(file);
+                              setFileDependencies(null);
+                              setIsConfirmSaveModalOpen(true);
+                            }}
+                            sx={{
+                              fontSize: 20,
+                              color: "#9ca3af",
+                              cursor: "pointer",
+                              "&:hover": {
+                                color: "#ef4444",
+                              },
+                            }}
+                          />
+                        </Tippy>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Pagination controls */}
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 rounded-b-xl mt-4">
+              <div className="text-sm text-gray-600">
+                Showing {Math.min(csvStartIndex + 1, csvFiles.length)} to {Math.min(csvEndIndex, csvFiles.length)} of {csvFiles.length} files
+              </div>
+
+              <div className="flex items-center gap-1">
+                {/* Previous Button */}
+                <button
+                  onClick={() => setCsvPage(p => p - 1)}
+                  disabled={csvPage === 1}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-xl transition-all ${csvPage === 1
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                >
+                  Previous
+                </button>
+
+                {/* Page Numbers */}
+                {Array.from({ length: csvTotalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCsvPage(page)}
+                    className={`min-w-[32px] h-[32px] text-sm font-medium rounded-xl transition-all ${csvPage === page
+                      ? 'bg-gray-200 text-gray-900'
+                      : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                {/* Next Button */}
+                <button
+                  onClick={() => setCsvPage(p => p + 1)}
+                  disabled={csvPage === csvTotalPages}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-xl transition-all ${csvPage === csvTotalPages
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Pagination controls - Always visible */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 rounded-b-xl mt-4">
-        <div className="text-sm text-gray-600">
-          Showing {Math.min(startIndex + 1, files.length)} to {Math.min(endIndex, files.length)} of {files.length} files
+      {/* -------------------- SECTION 2: LLM WEB SEARCH HISTORY -------------------- */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <label
+            className="block text-sm font-semibold"
+            style={{ color: theme.primaryText }}
+          >
+            LLM Web Search History
+          </label>
         </div>
 
-        <div className="flex items-center gap-1">
-          {/* Previous Button */}
-          <button
-            onClick={() => setCurrentPage(p => p - 1)}
-            disabled={currentPage === 1}
-            className={`px-3 py-1.5 text-sm font-medium rounded-xl transition-all ${currentPage === 1
-              ? 'text-gray-400 cursor-not-allowed'
-              : 'text-gray-700 hover:bg-gray-100'
-              }`}
+        {webSearchFiles.length === 0 ? (
+          <div 
+            className="rounded-xl p-8 text-center border border-dashed text-sm"
+            style={{ 
+              borderColor: theme.border, 
+              color: theme.secondaryText,
+              backgroundColor: theme.surface 
+            }}
           >
-            Previous
-          </button>
+            No web search history found.
+          </div>
+        ) : (
+          <>
+            {/* Headers */}
+            <div className="mb-3 overflow-x-auto">
+              <div className="flex items-center justify-between gap-4 px-4 py-2 rounded-xl" style={{ backgroundColor: theme.border + '20' }}>
+                <div className="flex-[2] min-w-0">
+                  <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
+                    Query / Source Name
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Knowledge Chunks / Rows Affected
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Ingestion Date
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Ingestion Time
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                    Action
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          {/* Page Numbers */}
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              onClick={() => setCurrentPage(page)}
-              className={`min-w-[32px] h-[32px] text-sm font-medium rounded-xl transition-all ${currentPage === page
-                ? 'bg-gray-200 text-gray-900'
-                : 'text-gray-700 hover:bg-gray-50'
-                }`}
-            >
-              {page}
-            </button>
-          ))}
+            {/* List */}
+            <div className="overflow-x-auto pr-2">
+              {paginatedWebFiles.map((file, index) => {
+                const fileName = file.name || file.file_name;
 
-          {/* Next Button */}
-          <button
-            onClick={() => setCurrentPage(p => p + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-3 py-1.5 text-sm font-medium rounded-xl transition-all ${currentPage === totalPages
-              ? 'text-gray-400 cursor-not-allowed'
-              : 'text-gray-700 hover:bg-gray-100'
-              }`}
-          >
-            Next
-          </button>
-        </div>
+                return (
+                  <div
+                    key={index}
+                    className="rounded-xl p-4 w-full mb-3 bg-gray-200 hover:bg-gray-300 transition-colors duration-200"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      {/* Query Name */}
+                      <div className="flex-[2] min-w-0">
+                        <div className="relative group">
+                          <div
+                            className="text-sm font-medium truncate"
+                            style={{ color: theme.primaryText }}
+                          >
+                            {fileName}
+                          </div>
+                          <div className="absolute left-0 mt-1 hidden group-hover:block whitespace-nowrap bg-[#888585] text-white text-xs px-2 py-1 rounded shadow-lg z-10">
+                            {fileName}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Chunks Affected */}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-medium text-center"
+                          style={{ color: theme.primaryText }}
+                        >
+                          {file.rows_effected || 0}
+                        </div>
+                      </div>
+
+                      {/* Ingestion Date */}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-medium text-center"
+                          style={{ color: theme.primaryText }}
+                        >
+                          {file.created_date || "N/A"}
+                        </div>
+                      </div>
+
+                      {/* Ingestion Time */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
+                          {formatTo12Hour(file.created_at) || new Date().toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      {/* Delete Action */}
+                      <div className="flex-1 min-w-0 flex justify-center">
+                        <Tippy content="Delete search history" theme="gray">
+                          <DeleteIcon
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteFile(file);
+                              setFileDependencies(null);
+                              setIsConfirmSaveModalOpen(true);
+                            }}
+                            sx={{
+                              fontSize: 20,
+                              color: "#9ca3af",
+                              cursor: "pointer",
+                              "&:hover": {
+                                color: "#ef4444",
+                              },
+                            }}
+                          />
+                        </Tippy>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 rounded-b-xl mt-4">
+              <div className="text-sm text-gray-600">
+                Showing {Math.min(webStartIndex + 1, webSearchFiles.length)} to {Math.min(webEndIndex, webSearchFiles.length)} of {webSearchFiles.length} records
+              </div>
+
+              <div className="flex items-center gap-1">
+                {/* Previous Button */}
+                <button
+                  onClick={() => setWebPage(p => p - 1)}
+                  disabled={webPage === 1}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-xl transition-all ${webPage === 1
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                >
+                  Previous
+                </button>
+
+                {/* Page Numbers */}
+                {Array.from({ length: webTotalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setWebPage(page)}
+                    className={`min-w-[32px] h-[32px] text-sm font-medium rounded-xl transition-all ${webPage === page
+                      ? 'bg-gray-200 text-gray-900'
+                      : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                {/* Next Button */}
+                <button
+                  onClick={() => setWebPage(p => p + 1)}
+                  disabled={webPage === webTotalPages}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-xl transition-all ${webPage === webTotalPages
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
-
 
       {/* modal for row details */}
       {isDetailsModalOpen && selectedRowDetails && !isConfirmSaveModalOpen && (
