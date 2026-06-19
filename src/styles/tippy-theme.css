@@ -1,0 +1,19 @@
+.tippy-box[data-theme~='gray'] {
+    @apply bg-gray-500 text-white;
+}
+
+.tippy-box[data-theme~='gray'][data-placement^='top'] > .tippy-arrow::before {
+    @apply border-t-gray-500;
+}
+
+.tippy-box[data-theme~='gray'][data-placement^='bottom'] > .tippy-arrow::before {
+    @apply border-b-gray-500;
+}
+
+.tippy-box[data-theme~='gray'][data-placement^='left'] > .tippy-arrow::before {
+    @apply border-l-gray-500;
+}
+
+.tippy-box[data-theme~='gray'][data-placement^='right'] > .tippy-arrow::before {
+    @apply border-r-gray-500;
+}
