@@ -928,18 +928,46 @@ export default function DataProcessing({ files, onRefresh }: Props) {
               </div>
 
               {/* Rendered Summary markdown content */}
-              <div className="prose prose-sm max-w-none text-xs text-gray-800 leading-relaxed">
+              <div className="prose prose-sm max-w-none text-xs text-gray-800 leading-relaxed pb-4 border-b border-gray-100">
                 {renderMarkdown(summaryResult)}
+              </div>
+
+              {/* Call to action card under the summary */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
+                <div className="space-y-0.5">
+                  <h4 className="text-xs font-bold text-blue-900">Curious to dig deeper?</h4>
+                  <p className="text-[11px] text-gray-600">Start querying and analyzing your newly ingested data in real-time.</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsSummaryModalOpen(false);
+                    navigate("/layout/query-list");
+                  }}
+                  className="px-4 py-2 self-start sm:self-auto text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow-md transition duration-200 active:scale-95 cursor-pointer flex items-center gap-1.5"
+                >
+                  Want to know more
+                  <ArrowForwardIcon sx={{ fontSize: 12 }} />
+                </button>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t flex justify-end bg-gray-50/50">
+            <div className="px-6 py-4 border-t flex justify-end gap-3 bg-gray-50/50">
               <button
                 onClick={() => setIsSummaryModalOpen(false)}
-                className="px-5 py-2 text-xs font-semibold rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 transition active:scale-95"
+                className="px-5 py-2 text-xs font-semibold rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 transition duration-200 active:scale-95 cursor-pointer"
               >
                 Close Summary
+              </button>
+              <button
+                onClick={() => {
+                  setIsSummaryModalOpen(false);
+                  navigate("/layout/query-list");
+                }}
+                className="px-5 py-2 text-xs font-bold rounded-xl text-white bg-gradient-to-r from-blue-500 to-[#7CA1F3] hover:from-blue-600 hover:to-blue-500 shadow-md hover:shadow-lg transition duration-200 active:scale-95 cursor-pointer flex items-center gap-1.5 hover:scale-[1.02]"
+              >
+                Want to know more
+                <ArrowForwardIcon sx={{ fontSize: 14 }} />
               </button>
             </div>
           </div>
