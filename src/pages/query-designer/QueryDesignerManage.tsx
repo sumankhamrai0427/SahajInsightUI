@@ -442,7 +442,7 @@ const QueryDesignerManage = () => {
     setChatInputValue("");
 
     // Map messages
-    const msgs = query.messages.map((m: any, idx: number) => ({
+    const msgs = (query.messages || []).map((m: any, idx: number) => ({
       query_id: m.id || idx + 1,
       query: m.query,
       created_at: m.actual_created_at || new Date().toISOString(),
@@ -508,17 +508,7 @@ const QueryDesignerManage = () => {
       chat_type: undefined
     };
 
-    if (agentMode === "sql") {
-      setChatMessages((prev) => [...prev, newMsg]);
-    } else {
-      const tempRagMsg = {
-        id: tempQueryId,
-        user_query: queryText,
-        ai_response: "",
-        created_at: queryTime,
-      };
-      setRagChatMessages((prev) => [...prev, tempRagMsg]);
-    }
+    setChatMessages((prev) => [...prev, newMsg]);
 
     setIsSendingMessage(true);
     setChatInputValue("");
@@ -583,11 +573,7 @@ const QueryDesignerManage = () => {
       const errMsg = err?.response?.data?.message || err?.message || "Failed to process query.";
       setChatInputError(errMsg);
       // Clean up temporary message on error
-      if (agentMode === "sql") {
-        setChatMessages((prev) => prev.filter((msg) => msg.query_id !== tempQueryId));
-      } else {
-        setRagChatMessages((prev) => prev.filter((msg) => msg.id !== tempQueryId));
-      }
+      setChatMessages((prev) => prev.filter((msg) => msg.query_id !== tempQueryId));
     } finally {
       setIsSendingMessage(false);
     }
