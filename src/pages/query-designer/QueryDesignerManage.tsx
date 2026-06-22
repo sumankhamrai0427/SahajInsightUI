@@ -31,6 +31,7 @@ interface StoredMessage {
   row_count: number;
   query_time: number;
   is_success: boolean;
+  chat_type?: "sql" | "rag";
 }
 
 interface ChatSession {
@@ -61,9 +62,12 @@ const QueryDesignerManage = () => {
   const [isWorkspaceListExpanded, setIsWorkspaceListExpanded] = useState<boolean>(true);
 
   // --- Agent Mode ---
-  const [agentMode, setAgentMode] = useState<"sql" | "rag">("sql");
   const [ragChatMessages, setRagChatMessages] = useState<any[]>([]);
   const [isFetchingRagHistory, setIsFetchingRagHistory] = useState<boolean>(false);
+
+  // --- Workspace Files ---
+  const [workspaceFiles, setWorkspaceFiles] = useState<any[]>([]);
+  const [isFetchingFiles, setIsFetchingFiles] = useState<boolean>(false);
 
   // --- Saved Queries & Backend Loading States ---
   const [queries, setQueries] = useState<any[]>([]);
@@ -235,11 +239,37 @@ const QueryDesignerManage = () => {
     }
   };
 
+  // fetchRagHistory is no longer actively polled here since we rely on unified session history
   useEffect(() => {
-    if (agentMode === "rag") {
-      fetchRagHistory();
+    // Left empty or removed dependency on agentMode
+  }, [activeWorkspace, realWorkspaces]);
+
+  const fetchWorkspaceFiles = async () => {
+    const wsId = getActiveWorkspaceId();
+    if (!user?.user_id) return;
+    setIsFetchingFiles(true);
+    try {
+      const response = await ApiServices.tracker({
+        created_by: user?.user_id,
+        session_id: user?.session_id,
+        workspace_id: wsId
+      });
+      if (response.data?.status === "success" || response.data?.isSuccess) {
+        setWorkspaceFiles(response.data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch workspace files", err);
+    } finally {
+      setIsFetchingFiles(false);
     }
-  }, [agentMode, activeWorkspace, realWorkspaces]);
+  };
+
+  useEffect(() => {
+    if (activeWorkspace && realWorkspaces.length > 0) {
+      fetchWorkspaceFiles();
+    }
+  }, [activeWorkspace, realWorkspaces]);
+
 
   // ==========================================
   // 2. Data Fetching & Helpers
@@ -442,11 +472,8 @@ const QueryDesignerManage = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const queryText = chatInputValue.trim();
-    if (!queryText) return;
+    if (!queryText || isSendingMessage) return;
 
-    setIsScriptGenerated(false);
-    setChatInputError(null);
-    setScriptResultTable(null);
     setIsScriptSuccess(false);
     setExecutionMeta(null);
 
@@ -460,67 +487,69 @@ const QueryDesignerManage = () => {
       row_count: 0,
       query_time: 0,
       is_success: false,
+      chat_type: undefined
     };
 
     setChatMessages((prev) => [...prev, newMsg]);
     setIsSendingMessage(true);
     setChatInputValue("");
+    setChatInputError(null);
 
     try {
-      if (agentMode === "rag") {
-        const wsId = getActiveWorkspaceId();
+      const wsId = getActiveWorkspaceId();
+      const payload = {
+        company_code: user?.company_code,
+        session_id: user?.session_id,
+        user_id: user?.user_id,
+        user_query: queryText,
+        workspace_id: wsId,
+        created_by: user?.user_id, // ensure created_by is passed if needed
+      };
 
-        const payload = {
-          company_code: user?.company_code,
-          session_id: user?.session_id,
-          user_id: user?.user_id,
-          user_query: queryText,
-          workspace_id: wsId
-        };
-        const response = await ApiServices.ragChat(payload);
-        const result = response.data?.data || {};
-        const aiRespText = result.ai_answer || "No response.";
+      const response = await ApiServices.unifiedChat(payload);
+      
+      let aiRespText = "";
+      let chatType: "sql" | "rag" = "rag";
+      let logs: string[] = [];
 
-        // Save RAG chat history immediately
-        await ApiServices.saveRagChat({
+      // unified_chat_controller returns chat_type in JSON payload
+      // if it was SQL, the payload structure from chat_endpoint_controller is slightly different from rag_chat_controller
+      const result = response.data?.data || {};
+      const chatTypeFromResponse = response.data?.chat_type || response.data?.data?.chat_type;
+
+      if (chatTypeFromResponse === "sql" || response.data?.chat_type === "sql") {
+        chatType = "sql";
+        aiRespText = result.ai_response || "";
+        logs = result.logs || [];
+      } else {
+        chatType = "rag";
+        // RAG uses ai_answer instead of ai_response sometimes, but let's be flexible
+        aiRespText = result.ai_answer || result.ai_response || response.data?.ai_response || "No response.";
+      }
+
+      // Update the message in chat state
+      setChatMessages((prev) =>
+        prev.map((msg) =>
+          msg.query_id === tempQueryId ? { ...msg, ai_response: aiRespText, chat_type: chatType } : msg
+        )
+      );
+
+      if (chatType === "sql") {
+        setTypedQuery(aiRespText);
+        setTypewriterKey((prev) => prev + 1);
+        setScriptLogs(logs);
+      } else {
+        // Save RAG chat history immediately in background
+        ApiServices.saveRagChat({
           company_code: user?.company_code,
           session_id: user?.session_id,
           user_id: user?.user_id,
           workspace_id: wsId,
           user_query: queryText,
           ai_response: aiRespText
-        });
-
-        const newRagMsg = {
-          id: tempQueryId,
-          user_query: queryText,
-          ai_response: aiRespText,
-          created_at: new Date().toISOString()
-        };
-        setRagChatMessages(prev => [...prev, newRagMsg]);
-      } else {
-        const wsId = getActiveWorkspaceId();
-        const payload = {
-          session_id: user?.session_id,
-          user_query: queryText,
-          workspace_id: wsId,
-        };
-
-        const response = await ApiServices.chat(payload);
-        const result = response.data?.data || {};
-        const aiRespText = result.ai_response || "";
-
-        // Update the message in chat state
-        setChatMessages((prev) =>
-          prev.map((msg) =>
-            msg.query_id === tempQueryId ? { ...msg, ai_response: aiRespText } : msg
-          )
-        );
-
-        setTypedQuery(aiRespText);
-        setTypewriterKey((prev) => prev + 1);
-        setScriptLogs(result.logs || []);
+        }).catch(err => console.error("Failed to save RAG chat", err));
       }
+
     } catch (err: any) {
       const errMsg = err?.response?.data?.message || err?.message || "Failed to process query.";
       setChatInputError(errMsg);
@@ -882,6 +911,38 @@ const QueryDesignerManage = () => {
             )}
           </div>
         </div>
+
+        {/* Workspace Data Sources Panel */}
+        <div className="flex-1 flex flex-col min-h-0 p-4 border-t border-gray-100">
+          <div className="flex items-center justify-between text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">
+            <span>Workspace Data Sources</span>
+            <button
+              onClick={() => fetchWorkspaceFiles()}
+              className="p-1 hover:bg-gray-100 rounded text-gray-400"
+              title="Refresh files"
+            >
+              <AutorenewRoundedIcon className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-1 min-h-0 pr-1">
+            {isFetchingFiles ? (
+              <div className="flex justify-center py-4 text-gray-400">
+                <AutorenewRoundedIcon className="animate-spin text-sm" />
+              </div>
+            ) : workspaceFiles.length > 0 ? (
+              workspaceFiles.map((file, idx) => (
+                <div key={file.file_id || idx} className="flex flex-col px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl mb-1">
+                  <span className="text-xs font-medium text-gray-700 truncate" title={file.file_name}>{file.file_name}</span>
+                  <span className="text-[10px] text-gray-400">{file.file_type === 'web_search' ? 'Web Search' : 'CSV Upload'} • {file.rows_effected} rows</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-400 text-xs">
+                No data sources found.
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ======================================================== */}
@@ -951,22 +1012,10 @@ const QueryDesignerManage = () => {
           {/* Agent Control Header */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 bg-white shadow-sm z-10">
             <div className="flex items-center gap-4">
-              <AnimatedToggleButton
-                options={[
-                  { label: "SQL Agent", value: "sql" },
-                  { label: "RAG Agent", value: "rag" }
-                ]}
-                defaultSelected={agentMode === "rag" ? 1 : 0}
-                onChange={(_idx, val) => setAgentMode(val as "sql" | "rag")}
-                borderRadius="0.5rem"
-                activeBorderRadius="0.375rem"
-                fontSize="0.75rem"
-                buttonPadding="0.4rem 1rem"
-              />
+              <span className="text-sm font-bold text-gray-800">Unified AI Chat</span>
             </div>
-            {agentMode === "rag" && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Workspace:</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Workspace:</span>
                 <select
                   value={activeWorkspace}
                   onChange={(e) => setActiveWorkspace(e.target.value)}
@@ -977,7 +1026,6 @@ const QueryDesignerManage = () => {
                   ))}
                 </select>
               </div>
-            )}
           </div>
 
           {/* Chat Messages Log Scroll area */}
@@ -985,8 +1033,7 @@ const QueryDesignerManage = () => {
             ref={chatScrollContainerRef}
             className="flex-1 overflow-y-auto p-5 space-y-4"
           >
-            {agentMode === "sql" ? (
-              chatMessages.length === 0 ? (
+            {chatMessages.length === 0 ? (
                 // Greeting/Welcome screen matching DAgent AI Assistant layout
                 <div className="max-w-3xl mx-auto py-8 text-center space-y-6">
                   <div className="inline-block px-4 py-1.5 bg-blue-50 text-[#5433FF] rounded-full text-xs font-bold uppercase tracking-wider">
@@ -1026,73 +1073,42 @@ const QueryDesignerManage = () => {
                         <div className="flex justify-start">
                           <div className="bg-white border border-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tl-none text-xs max-w-[80%] shadow-sm leading-relaxed">
                             <span className="font-semibold block mb-1 text-[10px] text-[#5433FF]">DAgent AI Assistant</span>
-                            <span className="text-gray-500 italic block mb-2">Procedure code generated below</span>
-                            <div className="flex justify-between items-center gap-4 bg-gray-50 border border-gray-100 p-2 rounded-lg text-[10px] font-mono mb-1">
-                              <span>SQL Query Ready</span>
-                              <button
-                                onClick={() => {
-                                  setTypedQuery(msg.ai_response);
-                                  setScriptLogs([]);
-                                  setScriptResultTable(null);
-                                  setExecutionMeta(null);
-                                  setCustomViewName("");
-                                }}
-                                className="text-[#5433FF] font-bold hover:underline"
-                              >
-                                Load Editor
-                              </button>
-                            </div>
+                            
+                            {msg.chat_type === "sql" ? (
+                              <>
+                                <span className="text-gray-500 italic block mb-2">Procedure code generated below</span>
+                                <div className="flex justify-between items-center gap-4 bg-gray-50 border border-gray-100 p-2 rounded-lg text-[10px] font-mono mb-1">
+                                  <span>SQL Query Ready</span>
+                                  <button
+                                    onClick={() => {
+                                      setTypedQuery(msg.ai_response);
+                                      setScriptLogs([]);
+                                      setScriptResultTable(null);
+                                      setExecutionMeta(null);
+                                      setCustomViewName("");
+                                    }}
+                                    className="text-[#5433FF] font-bold hover:underline"
+                                  >
+                                    Load Editor
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-gray-700 whitespace-pre-wrap">
+                                {msg.ai_response}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
-              )
-            ) : (
-              isFetchingRagHistory ? (
-                <div className="flex justify-center py-6 text-gray-400">
-                  <AutorenewRoundedIcon className="animate-spin text-sm" />
-                </div>
-              ) : ragChatMessages.length === 0 ? (
-                <div className="max-w-3xl mx-auto py-8 text-center space-y-6">
-                  <div className="inline-block px-4 py-1.5 bg-purple-50 text-purple-600 rounded-full text-xs font-bold uppercase tracking-wider">
-                    DAgent AI Assistant / RAG SESSION
-                  </div>
-                  <h2 className="text-xl font-bold text-gray-800 leading-tight">
-                    Chat with your documents and web searches
-                  </h2>
-                  <p className="text-xs text-gray-500 max-w-lg mx-auto">
-                    Select a workspace above and ask questions. The AI will retrieve context from your uploaded CSV files and web search results.
-                  </p>
-                </div>
-              ) : (
-                <div className="max-w-4xl mx-auto space-y-4">
-                  {ragChatMessages.map((msg, idx) => (
-                    <div key={msg.id || idx} className="space-y-2">
-                      <div className="flex justify-end">
-                        <div className="bg-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tr-none text-xs max-w-[80%] shadow-sm leading-relaxed">
-                          <span className="font-semibold block mb-0.5 text-[10px] text-gray-500">You</span>
-                          {msg.user_query}
-                        </div>
-                      </div>
-                      {msg.ai_response && (
-                        <div className="flex justify-start">
-                          <div className="bg-white border border-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tl-none text-xs max-w-[80%] shadow-sm leading-relaxed whitespace-pre-wrap">
-                            <span className="font-semibold block mb-1 text-[10px] text-purple-600">DAgent AI Assistant</span>
-                            {msg.ai_response}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
+              )}
           </div>
 
           {/* Generated Code Editor, Executer & Results Panel */}
-          {agentMode === "sql" && typedQuery && (
+          {typedQuery && (
             <div className="bg-white border-t border-gray-200 p-5 space-y-4 max-w-4xl mx-auto w-full rounded-t-2xl shadow-lg shrink-0">
               <div className="flex items-center justify-between">
                 <div>

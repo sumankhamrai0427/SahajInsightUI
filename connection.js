@@ -15,6 +15,7 @@ export const POST_APIS = {
   fileUpload: `${BASE_URL}upload_files_new`,
   tracker: `${BASE_URL}get_file_status`,
   chat_ai: `${BASE_URL}chat_ai`,
+  unified_chat: `${BASE_URL}chat/unified`,
   llm_web_search: `${BASE_URL}llm_web_search`,
   execute_sql: `${BASE_URL}execute_sql`,
   // get_ui_data: `${BASE_URL}get_ui_data`,
