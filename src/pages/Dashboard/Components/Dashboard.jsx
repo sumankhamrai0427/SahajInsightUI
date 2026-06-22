@@ -78,8 +78,8 @@ export default function Dashboard() {
         <KPICard icon={<Database size={18} />} label="Extracted Files" value={dashboardData?.total_extracted_files} color="emerald" />
         <KPICard icon={<Search size={18} />} label="Total Queries" value={dashboardData?.total_queries} color="violet" />
         <KPICard icon={<FileBarChart size={18} />} label="Reports Generated" value={dashboardData?.total_reports_generated} color="indigo" />
-        <KPICard icon={<Clock size={18} />} label="Avg Query Time" value={`${dashboardData?.avg_query_time}s`} color="amber" />
-        <KPICard icon={<Target size={18} />} label="Query Success Rate" value={`${dashboardData?.query_success_rate}%`} color="rose" />
+        <KPICard icon={<Clock size={18} />} label="Avg Query Time" value={dashboardData?.avg_query_time != null ? `${dashboardData.avg_query_time}s` : "0s"} color="amber" />
+        <KPICard icon={<Target size={18} />} label="Query Success Rate" value={dashboardData?.query_success_rate != null ? `${dashboardData.query_success_rate}%` : "0%"} color="rose" />
         <KPICard icon={<Layers size={18} />} label="Avg Rows/Report" value={dashboardData?.avg_rows_per_report} color="cyan" />
       </div>
 

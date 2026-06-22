@@ -147,6 +147,11 @@ const QueryDesignerManage = () => {
             
             setActiveWorkspace(activeWs);
             localStorage.setItem("ig_active_workspace", activeWs);
+            const syncObj = fetchedWorkspaces.find((w: any) => w.workspace_name === activeWs);
+            if (syncObj) {
+              localStorage.setItem("selected_workspace", syncObj.id.toString());
+              localStorage.setItem("active_workspace_id", syncObj.id.toString());
+            }
           }
         } catch (error) {
           console.error("Failed to fetch workspaces in query designer", error);
@@ -161,9 +166,15 @@ const QueryDesignerManage = () => {
   useEffect(() => {
     if (user?.session_id && user?.user_id) {
       fetchSavedQueries(true);
-      fetchExplorerTableOptions();
     }
   }, [user]);
+
+  // Fetch explorer tables when user, activeWorkspace, or workspaces list loads
+  useEffect(() => {
+    if (user?.session_id && user?.user_id && realWorkspaces.length > 0) {
+      fetchExplorerTableOptions(true);
+    }
+  }, [user, activeWorkspace, realWorkspaces]);
 
   // Handle Query Mappings to Workspaces once queries are fetched
   useEffect(() => {
@@ -257,12 +268,14 @@ const QueryDesignerManage = () => {
     }
   };
 
-  const fetchExplorerTableOptions = async () => {
-    if (tablesFetched || isFetchingTables) return;
+  const fetchExplorerTableOptions = async (forceRefresh = false) => {
+    if ((tablesFetched && !forceRefresh) || isFetchingTables) return;
     setIsFetchingTables(true);
+    const wsId = getActiveWorkspaceId();
     const payload = {
       created_by: user?.user_id || "",
       session_id: user?.session_id || "",
+      workspace_id: wsId,
     };
     try {
       const response = await ApiServices.getTableData(payload);
@@ -332,6 +345,11 @@ const QueryDesignerManage = () => {
   const handleSelectWorkspace = (ws: string) => {
     setActiveWorkspace(ws);
     localStorage.setItem("ig_active_workspace", ws);
+    const wsObj = realWorkspaces.find(w => w.workspace_name === ws);
+    if (wsObj) {
+      localStorage.setItem("selected_workspace", wsObj.id.toString());
+      localStorage.setItem("active_workspace_id", wsObj.id.toString());
+    }
     handleNewQuery(); // start clean when switching workspaces
   };
 
@@ -481,9 +499,11 @@ const QueryDesignerManage = () => {
         };
         setRagChatMessages(prev => [...prev, newRagMsg]);
       } else {
+        const wsId = getActiveWorkspaceId();
         const payload = {
           session_id: user?.session_id,
           user_query: queryText,
+          workspace_id: wsId,
         };
 
         const response = await ApiServices.chat(payload);

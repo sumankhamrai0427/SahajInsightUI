@@ -969,7 +969,6 @@ export default function DataProcessing({ files, onRefresh }: Props) {
               <div className="prose prose-sm max-w-none text-xs text-gray-800 leading-relaxed pb-4 border-b border-gray-100">
                 {renderMarkdown(summaryResult)}
               </div>
-
               {/* Call to action card under the summary */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
                 <div className="space-y-0.5">
