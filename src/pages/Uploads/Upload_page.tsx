@@ -49,7 +49,7 @@ export default function UploadPage() {
       const response = await ApiService.createWorkspace(payload);
       if (response.data?.isSuccess) {
         const newWsId = response.data.data?.workspace_id;
-        
+
         // Refresh workspaces list
         const userIdentifier = user?.email || user?.user_email || user?.user_id;
         const res = await ApiService.getUserWorkspaces({
@@ -61,12 +61,12 @@ export default function UploadPage() {
           const wsList = res.data.data || [];
           setWorkspaces(wsList);
         }
-        
+
         // Auto-select the newly created workspace
         if (newWsId) {
           setSelectedWorkspace(newWsId.toString());
         }
-        
+
         setFilterQuery("");
       } else {
         alert(response.data?.message || "Failed to create workspace.");
@@ -90,9 +90,9 @@ export default function UploadPage() {
       if (!userIdentifier) return;
       try {
         const payload = {
-            user_email: userIdentifier,
-            session_id: sessionId,
-            created_by: createdBy
+          user_email: userIdentifier,
+          session_id: sessionId,
+          created_by: createdBy
         };
         const res = await ApiService.getUserWorkspaces(payload);
         if (res.data?.isSuccess) {
@@ -111,7 +111,7 @@ export default function UploadPage() {
       localStorage.setItem("selected_workspace", selectedWorkspace);
       localStorage.setItem("active_workspace_id", selectedWorkspace);
       if (!isInitialMount.current) {
-         trackFiles();
+        trackFiles();
       }
     }
   }, [selectedWorkspace]);
@@ -236,7 +236,7 @@ export default function UploadPage() {
         value: ws.id.toString(),
       }))
     ];
-    
+
     const trimmed = filterQuery.trim();
     if (trimmed) {
       const exists = workspaces.some(ws => ws.workspace_name.toLowerCase() === trimmed.toLowerCase());
@@ -330,12 +330,11 @@ export default function UploadPage() {
             },
             list: { className: "p-1" },
             item: ({ context }: any) => ({
-              className: `px-3 py-2 rounded-xl text-xs cursor-pointer transition-colors mb-0.5 whitespace-normal break-words ${
-                context.selected
-                  ? "bg-[#7CA1F3]/20 font-semibold"
-                  : "hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`,
-              style: { color: theme.primaryText }
+              className: `px-3 py-2 rounded-xl text-xs cursor-pointer transition-colors mb-0.5 whitespace-normal break-words ${context.selected
+                ? "bg-sky-100 text-sky-600 font-semibold"
+                : "hover:bg-sky-50 hover:text-sky-600"
+                }`,
+              style: context.selected ? {} : { color: theme.primaryText }
             }),
             itemLabel: { className: "font-medium" },
             filterContainer: {
@@ -363,7 +362,7 @@ export default function UploadPage() {
             disabled={isUploading || isProcessing || selectedWorkspace === "all"}
           />
           {selectedWorkspace === "all" && (
-            <p className="text-xs text-amber-500 mt-2 text-center font-semibold">
+            <p className="text-xs text-red-500 mt-2 text-center font-semibold">
               Please select a specific workspace to upload files.
             </p>
           )}
@@ -405,7 +404,7 @@ export default function UploadPage() {
             </div>
           </div>
           {selectedWorkspace === "all" && (
-            <p className="text-xs text-amber-500 text-center font-semibold mt-1">
+            <p className="text-xs text-red-500 text-center font-semibold mt-1">
               Please select a specific workspace to search.
             </p>
           )}
