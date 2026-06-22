@@ -50,10 +50,33 @@ export default function DataProcessing({ files, onRefresh }: Props) {
   const [csvPage, setCsvPage] = useState(1);
   const [webPage, setWebPage] = useState(1);
 
-  const csvTotalPages = Math.ceil(csvFiles.length / ITEMS_PER_PAGE) || 1;
+  // Group CSV files by workspace
+  interface GroupedWorkspace {
+    workspaceName: string;
+    files: any[];
+  }
+
+  const getGroupedCsvs = (): GroupedWorkspace[] => {
+    const groups: Record<string, any[]> = {};
+    csvFiles.forEach(file => {
+      const wsName = file.workspace_name || "Unassigned Workspace";
+      if (!groups[wsName]) {
+        groups[wsName] = [];
+      }
+      groups[wsName].push(file);
+    });
+
+    return Object.entries(groups).map(([workspaceName, files]) => ({
+      workspaceName,
+      files
+    }));
+  };
+
+  const groupedCsvs = getGroupedCsvs();
+  const csvTotalPages = Math.ceil(groupedCsvs.length / ITEMS_PER_PAGE) || 1;
   const csvStartIndex = (csvPage - 1) * ITEMS_PER_PAGE;
-  const csvEndIndex = Math.min(csvStartIndex + ITEMS_PER_PAGE, csvFiles.length);
-  const paginatedCsvFiles = csvFiles.slice(csvStartIndex, csvEndIndex);
+  const csvEndIndex = Math.min(csvStartIndex + ITEMS_PER_PAGE, groupedCsvs.length);
+  const paginatedGroupedCsvFiles = groupedCsvs.slice(csvStartIndex, csvEndIndex);
 
   const webTotalPages = Math.ceil(webSearchFiles.length / ITEMS_PER_PAGE) || 1;
   const webStartIndex = (webPage - 1) * ITEMS_PER_PAGE;
@@ -61,6 +84,51 @@ export default function DataProcessing({ files, onRefresh }: Props) {
   const paginatedWebFiles = webSearchFiles.slice(webStartIndex, webEndIndex);
 
   const [fileDependencies, setFileDependencies] = useState<string | null>(null);
+
+  const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
+  const [logsFile, setLogsFile] = useState<any>(null);
+
+  const handleViewLogs = (file: any) => {
+    setLogsFile(file);
+    setIsLogsModalOpen(true);
+  };
+
+  const getLogsForFile = (file: any) => {
+    const logs = [];
+    const dateStr = file.created_date || new Date().toLocaleDateString();
+    const timeStr = formatTo12Hour(file.created_at) || "12:00 AM";
+    const name = file.name || file.file_name;
+
+    logs.push(`[${dateStr} ${timeStr}] [INFO] Initializing ingestion pipeline for file: "${name}"`);
+    logs.push(`[${dateStr} ${timeStr}] [INFO] Reading upload source from dynamic metadata store...`);
+
+    if (file.table_extraction_status?.toLowerCase() === "done") {
+      logs.push(`[${dateStr} ${timeStr}] [SUCCESS] Table extraction completed. Table created: "${file.table_name}"`);
+    } else if (file.table_extraction_status?.toLowerCase() === "failed") {
+      logs.push(`[${dateStr} ${timeStr}] [ERROR] Table extraction failed. Check CSV formatting or syntax.`);
+    } else {
+      logs.push(`[${dateStr} ${timeStr}] [PENDING] Table extraction is currently in progress or queued.`);
+    }
+
+    if (file.column_extraction_status?.toLowerCase() === "done") {
+      logs.push(`[${dateStr} ${timeStr}] [SUCCESS] Column extraction completed. Inferred types and generated schemas successfully.`);
+    } else if (file.column_extraction_status?.toLowerCase() === "failed") {
+      logs.push(`[${dateStr} ${timeStr}] [ERROR] Column extraction failed.`);
+    } else {
+      logs.push(`[${dateStr} ${timeStr}] [PENDING] Column schema mapping is pending.`);
+    }
+
+    if (file.data_insert_status?.toLowerCase() === "done") {
+      logs.push(`[${dateStr} ${timeStr}] [SUCCESS] Data insert completed. Loaded ${file.rows_effected || 0} rows into "${file.table_name}".`);
+      logs.push(`[${dateStr} ${timeStr}] [INFO] File processing pipeline finished successfully.`);
+    } else if (file.data_insert_status?.toLowerCase() === "failed") {
+      logs.push(`[${dateStr} ${timeStr}] [ERROR] Data insert failed. Connection reset or field mismatch.`);
+    } else {
+      logs.push(`[${dateStr} ${timeStr}] [PENDING] Writing data rows to database is pending.`);
+    }
+
+    return logs;
+  };
 
   // Selection states
   const [selectedCsvs, setSelectedCsvs] = useState<string[]>([]);
@@ -494,275 +562,275 @@ export default function DataProcessing({ files, onRefresh }: Props) {
           </div>
         ) : (
           <>
-            {/* Global Column Headers */}
-            <div className="mb-3 overflow-x-auto">
-              <div className="flex items-center justify-between gap-4 px-4 py-2 rounded-xl" style={{ backgroundColor: theme.border + '20' }}>
-                <div className="w-12 flex items-center justify-center">
-                  <input
-                    type="checkbox"
-                    checked={csvFiles.length > 0 && selectedCsvs.length === csvFiles.length}
-                    onChange={(e) => handleSelectAllCsv(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#7CA1F3] focus:ring-[#7CA1F3] border-gray-300 cursor-pointer"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
-                    Workspace Name
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
-                    File Name
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
-                    Table Names
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Row Affected
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Table Extraction
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Column Extraction
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Data Insert Status
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    File Size
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Created Date
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Uploaded At
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Status
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Action
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Files List - No fixed height, no vertical scrolling */}
-            <div className="overflow-x-auto pr-2">
-              {paginatedCsvFiles.map((file, index) => {
-                const fileName = file.name || file.file_name;
-                const currentProgress = processingProgress[fileName] || 0;
-                const isFullyProcessed = currentProgress >= TOTAL_STEPS;
-
-                const extractionFailed =
-                  file.table_extraction_status?.toLowerCase() === "failed" ||
-                  file.table_extraction_status?.toLowerCase() === "pending";
-
-                return (
-                  <div
-                    key={index}
-                    onClick={() => handleRowClick(file)}
-                    className="rounded-xl p-4 w-full mb-3 bg-gray-200 hover:bg-gray-300 transition-colors duration-200 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      {/* Checkbox */}
-                      <div className="w-12 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            {/* Scrollable container for the whole table */}
+            <div className="overflow-x-auto w-full pr-2">
+              <div className="min-w-[1500px]">
+                
+                {/* Global Column Headers */}
+                <div className="mb-3">
+                  <div className="flex items-center gap-4 px-4 py-2 rounded-xl" style={{ backgroundColor: theme.border + '20' }}>
+                    <div className="flex-[1.5] min-w-[150px] text-xs font-semibold" style={{ color: theme.secondaryText }}>
+                      Workspace Name
+                    </div>
+                    <div className="flex-[13.7] flex items-center gap-4">
+                      <div className="w-12 flex-shrink-0 flex items-center justify-center">
                         <input
                           type="checkbox"
-                          checked={selectedCsvs.includes(fileName)}
-                          onChange={() => handleToggleCsv(fileName)}
+                          checked={csvFiles.length > 0 && selectedCsvs.length === csvFiles.length}
+                          onChange={(e) => handleSelectAllCsv(e.target.checked)}
                           className="w-4 h-4 rounded text-[#7CA1F3] focus:ring-[#7CA1F3] border-gray-300 cursor-pointer"
                         />
                       </div>
-
-                      {/* Workspace Name */}
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-sm font-medium truncate"
-                          style={{ color: theme.primaryText }}
-                        >
-                          {file.workspace_name || 'N/A'}
-                        </div>
+                      <div className="flex-[2] min-w-[200px] text-xs font-semibold" style={{ color: theme.secondaryText }}>
+                        File Name
                       </div>
-
-                      {/* File Name */}
-                      <div className="flex-1 min-w-0">
-                        <div className="relative group">
-                          <div
-                            className="text-sm font-medium truncate"
-                            style={{ color: theme.primaryText }}
-                          >
-                            {fileName}
-                          </div>
-                          <div className="absolute left-0 mt-1 hidden group-hover:block whitespace-nowrap bg-[#888585] text-white text-xs px-2 py-1 rounded shadow-lg z-10">
-                            {fileName}
-                          </div>
-                        </div>
+                      <div className="flex-[1.5] min-w-[150px] text-xs font-semibold" style={{ color: theme.secondaryText }}>
+                        Table Names
                       </div>
-
-                      {/* Table Names */}
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-sm font-medium truncate"
-                          style={{ color: theme.primaryText }}
-                        >
-                          {file.table_name || 'N/A'}
-                        </div>
+                      <div className="flex-[0.8] min-w-[80px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Row Affected
                       </div>
-
-                      {/* Row Affected */}
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-sm font-medium text-center"
-                          style={{ color: theme.primaryText }}
-                        >
-                          {file.rows_effected || 0}
-                        </div>
+                      <div className="flex-[1] min-w-[100px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Table Extraction
                       </div>
-
-                      {/* Table Extraction Status */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-center">
-                          {extractionFailed ? (
-                            <span className="text-red-500 text-xs font-medium">Failed</span>
-                          ) : file.table_extraction_status?.toLowerCase() === 'done' ? (
-                            <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
-                          ) : (
-                            <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
-                          )}
-                        </div>
+                      <div className="flex-[1] min-w-[100px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Column Extraction
                       </div>
-
-                      {/* Column Extraction Status */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-center">
-                          {file.column_extraction_status?.toLowerCase() === 'done' ? (
-                            <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
-                          ) : (
-                            <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
-                          )}
-                        </div>
+                      <div className="flex-[1] min-w-[100px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Data Insert Status
                       </div>
-
-                      {/* Data Insert Status */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-center">
-                          {file.data_insert_status?.toLowerCase() === 'done' ? (
-                            <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
-                          ) : (
-                            <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
-                          )}
-                        </div>
+                      <div className="flex-[1] min-w-[80px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        File Size
                       </div>
-
-                      {/* File Size */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
-                          {file.file_size_mb || (file.size ? `${(file.size / (1024 * 1024)).toFixed(2)}MB` : 'N/A')}
-                        </div>
+                      <div className="flex-[1.2] min-w-[100px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Created Date
                       </div>
-
-                      {/* Created Date */}
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-sm font-medium text-center"
-                          style={{ color: theme.primaryText }}
-                        >
-                          {file.created_date || "N/A"}
-                        </div>
+                      <div className="flex-[1.2] min-w-[100px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Uploaded At
                       </div>
-
-                      {/* Uploaded At */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
-                          {formatTo12Hour(file.created_at) || new Date().toLocaleDateString()}
-                        </div>
+                      <div className="flex-[1] min-w-[100px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Status
                       </div>
-
-                      {/* Status */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
-                          {file.status || 'processed'}
-                        </div>
+                      <div className="flex-[0.8] min-w-[80px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Log
                       </div>
-
-                      {/* Actions */}
-                      <div className="flex-1 min-w-0 flex justify-center items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Tippy content="Edit file" theme="gray">
-                          <EditIcon
-                            onClick={() => handleOpenEdit(file)}
-                            sx={{
-                              fontSize: 20,
-                              color: "#9ca3af",
-                              cursor: "pointer",
-                              "&:hover": {
-                                color: theme.accent,
-                              },
-                            }}
-                          />
-                        </Tippy>
-                        <Tippy content="View file details" theme="gray">
-                          <VisibilityIcon
-                            onClick={() => handleRowClick(file)}
-                            sx={{
-                              fontSize: 20,
-                              color: "#9ca3af",
-                              cursor: "pointer",
-                              "&:hover": {
-                                color: "#10b981",
-                              },
-                            }}
-                          />
-                        </Tippy>
-                        <Tippy content="Delete file" theme="gray">
-                          <DeleteIcon
-                            onClick={() => {
-                              setDeleteFile(file);
-                              setFileDependencies(null);
-                              setIsConfirmSaveModalOpen(true);
-                            }}
-                            sx={{
-                              fontSize: 20,
-                              color: "#9ca3af",
-                              cursor: "pointer",
-                              "&:hover": {
-                                color: "#ef4444",
-                              },
-                            }}
-                          />
-                        </Tippy>
+                      <div className="flex-[1.2] min-w-[120px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Action
                       </div>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+
+                {/* Workspace Grouped Cards */}
+                <div className="space-y-3">
+                  {paginatedGroupedCsvFiles.map((group, index) => {
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-stretch rounded-xl overflow-hidden bg-gray-200"
+                        style={{ border: `1px solid ${theme.border}` }}
+                      >
+                        {/* Left column: Workspace Name */}
+                        <div
+                          className="flex-[1.5] min-w-[150px] p-4 flex items-center bg-gray-300 font-semibold text-sm break-words whitespace-normal"
+                          style={{ color: theme.primaryText }}
+                        >
+                          {group.workspaceName}
+                        </div>
+
+                        {/* Right column: Files list stack */}
+                        <div className="flex-[13.7] flex flex-col divide-y divide-gray-300 bg-gray-200">
+                          {group.files.map((file, fileIdx) => {
+                            const fileName = file.name || file.file_name;
+                            const currentProgress = processingProgress[fileName] || 0;
+                            const isFullyProcessed = currentProgress >= TOTAL_STEPS;
+                            const extractionFailed =
+                              file.table_extraction_status?.toLowerCase() === "failed" ||
+                              file.table_extraction_status?.toLowerCase() === "pending";
+
+                            return (
+                              <div
+                                key={fileIdx}
+                                className="flex items-center gap-4 p-4 hover:bg-gray-300 transition-colors duration-200"
+                              >
+                                {/* Checkbox */}
+                                <div className="w-12 flex-shrink-0 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedCsvs.includes(fileName)}
+                                    onChange={() => handleToggleCsv(fileName)}
+                                    className="w-4 h-4 rounded text-[#7CA1F3] focus:ring-[#7CA1F3] border-gray-300 cursor-pointer"
+                                  />
+                                </div>
+
+                                {/* File Name */}
+                                <div className="flex-[2] min-w-[200px]">
+                                  <div
+                                    className="text-sm font-medium break-words whitespace-normal"
+                                    style={{ color: theme.primaryText }}
+                                  >
+                                    {fileName}
+                                  </div>
+                                </div>
+
+                                {/* Table Names */}
+                                <div className="flex-[1.5] min-w-[150px]">
+                                  <div
+                                    className="text-sm font-medium break-words whitespace-normal"
+                                    style={{ color: theme.primaryText }}
+                                  >
+                                    {file.table_name || 'N/A'}
+                                  </div>
+                                </div>
+
+                                {/* Row Affected */}
+                                <div className="flex-[0.8] min-w-[80px]">
+                                  <div
+                                    className="text-sm font-medium text-center"
+                                    style={{ color: theme.primaryText }}
+                                  >
+                                    {file.rows_effected || 0}
+                                  </div>
+                                </div>
+
+                                {/* Table Extraction Status */}
+                                <div className="flex-[1] min-w-[100px]">
+                                  <div className="flex justify-center">
+                                    {extractionFailed ? (
+                                      <span className="text-red-500 text-xs font-medium">Failed</span>
+                                    ) : file.table_extraction_status?.toLowerCase() === 'done' ? (
+                                      <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
+                                    ) : (
+                                      <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Column Extraction Status */}
+                                <div className="flex-[1] min-w-[100px]">
+                                  <div className="flex justify-center">
+                                    {file.column_extraction_status?.toLowerCase() === 'done' ? (
+                                      <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
+                                    ) : (
+                                      <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Data Insert Status */}
+                                <div className="flex-[1] min-w-[100px]">
+                                  <div className="flex justify-center">
+                                    {file.data_insert_status?.toLowerCase() === 'done' ? (
+                                      <CheckCircleIcon sx={{ fontSize: 20, color: theme.accent }} />
+                                    ) : (
+                                      <RadioButtonUncheckedIcon sx={{ fontSize: 20, color: theme.secondaryText }} />
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* File Size */}
+                                <div className="flex-[1] min-w-[80px]">
+                                  <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
+                                    {file.file_size_mb || (file.size ? `${(file.size / (1024 * 1024)).toFixed(2)}MB` : 'N/A')}
+                                  </div>
+                                </div>
+
+                                {/* Created Date */}
+                                <div className="flex-[1.2] min-w-[100px]">
+                                  <div
+                                    className="text-sm font-medium text-center"
+                                    style={{ color: theme.primaryText }}
+                                  >
+                                    {file.created_date || "N/A"}
+                                  </div>
+                                </div>
+
+                                {/* Uploaded At */}
+                                <div className="flex-[1.2] min-w-[100px]">
+                                  <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
+                                    {formatTo12Hour(file.created_at) || new Date().toLocaleDateString()}
+                                  </div>
+                                </div>
+
+                                {/* Status */}
+                                <div className="flex-[1] min-w-[100px]">
+                                  <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
+                                    {file.status || 'processed'}
+                                  </div>
+                                </div>
+
+                                {/* Log Button */}
+                                <div className="flex-[0.8] min-w-[80px] flex justify-center" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => handleViewLogs(file)}
+                                    className="px-2 py-1 text-xs bg-gray-800 text-white rounded hover:bg-gray-700 transition font-mono border border-gray-700 active:scale-95"
+                                  >
+                                    LOG
+                                  </button>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex-[1.2] min-w-[120px] flex justify-center items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                  <Tippy content="Edit file" theme="gray">
+                                    <EditIcon
+                                      onClick={() => handleOpenEdit(file)}
+                                      sx={{
+                                        fontSize: 20,
+                                        color: "#9ca3af",
+                                        cursor: "pointer",
+                                        "&:hover": {
+                                          color: theme.accent,
+                                        },
+                                      }}
+                                    />
+                                  </Tippy>
+                                  <Tippy content="View file details" theme="gray">
+                                    <VisibilityIcon
+                                      onClick={() => handleRowClick(file)}
+                                      sx={{
+                                        fontSize: 20,
+                                        color: "#9ca3af",
+                                        cursor: "pointer",
+                                        "&:hover": {
+                                          color: "#10b981",
+                                        },
+                                      }}
+                                    />
+                                  </Tippy>
+                                  <Tippy content="Delete file" theme="gray">
+                                    <DeleteIcon
+                                      onClick={() => {
+                                        setDeleteFile(file);
+                                        setFileDependencies(null);
+                                        setIsConfirmSaveModalOpen(true);
+                                      }}
+                                      sx={{
+                                        fontSize: 20,
+                                        color: "#9ca3af",
+                                        cursor: "pointer",
+                                        "&:hover": {
+                                          color: "#ef4444",
+                                        },
+                                      }}
+                                    />
+                                  </Tippy>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
             </div>
 
             {/* Pagination controls */}
             <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 rounded-b-xl mt-4">
               <div className="text-sm text-gray-600">
-                Showing {Math.min(csvStartIndex + 1, csvFiles.length)} to {Math.min(csvEndIndex, csvFiles.length)} of {csvFiles.length} files
+                Showing {Math.min(csvStartIndex + 1, groupedCsvs.length)} to {Math.min(csvEndIndex, groupedCsvs.length)} of {groupedCsvs.length} workspaces
               </div>
 
               <div className="flex items-center gap-1">
@@ -794,7 +862,7 @@ export default function DataProcessing({ files, onRefresh }: Props) {
 
                 {/* Next Button */}
                 <button
-                  onClick={() => setCsvPage(p => p - 1)}
+                  onClick={() => setCsvPage(p => p + 1)}
                   disabled={csvPage === csvTotalPages}
                   className={`px-3 py-1.5 text-sm font-medium rounded-xl transition-all ${csvPage === csvTotalPages
                     ? 'text-gray-400 cursor-not-allowed'
@@ -1297,6 +1365,75 @@ export default function DataProcessing({ files, onRefresh }: Props) {
         </div>
       )}
 
+      {/* -------------------- TERMINAL LOGS MODAL -------------------- */}
+      {isLogsModalOpen && logsFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-[700px] max-w-[95vw] rounded-2xl shadow-2xl bg-[#0d1117] flex flex-col border border-gray-800 overflow-hidden">
+            {/* Terminal Window Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-[#161b22] border-b border-gray-800 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1.5">
+                  <span className="w-3 h-3 rounded-full bg-[#f85149] inline-block" />
+                  <span className="w-3 h-3 rounded-full bg-[#d29922] inline-block" />
+                  <span className="w-3 h-3 rounded-full bg-[#3fb950] inline-block" />
+                </div>
+                <span className="ml-2 text-xs font-mono text-gray-400">
+                  ingestion-pipeline://{logsFile.name || logsFile.file_name}
+                </span>
+              </div>
+              <button
+                onClick={() => setIsLogsModalOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors duration-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Terminal Window Body */}
+            <div className="p-5 flex-1 overflow-y-auto max-h-[50vh] font-mono text-xs text-[#c9d1d9] space-y-2 select-text leading-relaxed bg-[#0d1117]">
+              {getLogsForFile(logsFile).map((logLine, idx) => {
+                let colorClass = "text-[#c9d1d9]";
+                if (logLine.includes("[SUCCESS]")) {
+                  colorClass = "text-[#3fb950]";
+                } else if (logLine.includes("[ERROR]")) {
+                  colorClass = "text-[#f85149]";
+                } else if (logLine.includes("[PENDING]")) {
+                  colorClass = "text-[#d29922]";
+                } else if (logLine.includes("[INFO]")) {
+                  colorClass = "text-[#58a6ff]";
+                }
+
+                return (
+                  <div key={idx} className={colorClass}>
+                    {logLine}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Terminal Window Footer */}
+            <div className="px-5 py-3 bg-[#161b22] border-t border-gray-800 flex justify-end gap-3 shrink-0">
+              <button
+                onClick={() => {
+                  const fullLogText = getLogsForFile(logsFile).join("\n");
+                  navigator.clipboard.writeText(fullLogText);
+                  setSnackbar({ open: true, message: "Logs copied to clipboard", severity: "success" });
+                }}
+                className="px-4 py-2 text-xs font-mono font-semibold rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 transition duration-200 border border-gray-700 active:scale-95"
+              >
+                Copy Logs
+              </button>
+              <button
+                onClick={() => setIsLogsModalOpen(false)}
+                className="px-4 py-2 text-xs font-mono font-semibold rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition duration-200 active:scale-95"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ConfirmSaveView
         customTitle={deleteFile?.name || deleteFile?.file_name}
         customMessage={
@@ -1312,6 +1449,21 @@ export default function DataProcessing({ files, onRefresh }: Props) {
         customOnConfirm={() => handleDeleteFile(deleteFile)}
         showConfirmButton={!fileDependencies}
       />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }

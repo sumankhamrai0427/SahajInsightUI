@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import ApiService from "../../../services/ApiServices";
 import {
   FileText, Database, Search, FileBarChart, Clock, Target,
-  TrendingUp, Activity, Lightbulb, CheckCircle2, Layers
+  TrendingUp, Activity, Lightbulb, CheckCircle2, Layers, Sparkles
 } from "lucide-react";
 import { Bar, Line } from "react-chartjs-2";
 import {
@@ -121,25 +121,51 @@ export default function Dashboard() {
         </div>
 
         {/* 4. QUERY ACTIVITY TREND */}
-        <div className="col-span-12 lg:col-span-4 bg-white rounded-3xl p-5 md:p-6 border border-slate-200 shadow-sm">
-          <h3 className="font-bold text-slate-700 mb-6 text-xs uppercase tracking-widest">Query Activity Trend</h3>
-          <div className="h-[200px] md:h-[250px]">
-            <Line
-              data={{
-                labels: dashboardData?.query_activity_trend?.map(d => new Date(d.query_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })) || [],
-                datasets: [{
-                  data: dashboardData?.query_activity_trend?.map(d => d.total_queries) || [],
-                  borderColor: '#6366f1',
-                  backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                  fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#6366f1'
-                }]
-              }}
-              options={{
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-              }}
-            />
+        <div className="col-span-12 lg:col-span-4 bg-white rounded-3xl p-5 md:p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 className="font-bold text-slate-700 mb-6 text-xs uppercase tracking-widest">Query Activity Trend</h3>
+            <div className="h-[200px] md:h-[220px]">
+              <Line
+                data={{
+                  labels: dashboardData?.query_activity_trend?.map(d => new Date(d.query_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })) || [],
+                  datasets: [{
+                    data: dashboardData?.query_activity_trend?.map(d => d.total_queries) || [],
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#6366f1'
+                  }]
+                }}
+                options={{
+                  responsive: true, maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }}
+              />
+            </div>
+          </div>
+          
+          {/* AI Trend Insights */}
+          <div className="mt-5 p-4 bg-gradient-to-br from-indigo-50/40 to-purple-50/40 border border-indigo-100/70 rounded-2xl">
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="p-1 bg-indigo-500 text-white rounded shadow-sm">
+                <Sparkles size={12} />
+              </span>
+              <h4 className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">AI Trend Insights</h4>
+            </div>
+            <div className="space-y-2 max-h-[120px] overflow-y-auto pr-1">
+              {dashboardData?.query_trend_insights && dashboardData.query_trend_insights.length > 0 ? (
+                dashboardData.query_trend_insights.map((insight, idx) => (
+                  <div key={idx} className="text-[10px] text-slate-500 font-medium leading-normal flex items-start gap-1.5">
+                    <span className="text-indigo-500">•</span>
+                    <span>
+                      {insight.split("**").map((part, i) => i % 2 === 1 ? <strong key={i} className="text-slate-700">{part}</strong> : part)}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[10px] text-slate-400 italic">Calculating activity metrics...</p>
+              )}
+            </div>
           </div>
         </div>
 
