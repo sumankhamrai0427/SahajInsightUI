@@ -931,24 +931,6 @@ export default function DataProcessing({ files, onRefresh }: Props) {
               <div className="prose prose-sm max-w-none text-xs text-gray-800 leading-relaxed pb-4 border-b border-gray-100">
                 {renderMarkdown(summaryResult)}
               </div>
-
-              {/* Call to action card under the summary */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
-                <div className="space-y-0.5">
-                  <h4 className="text-xs font-bold text-blue-900">Curious to dig deeper?</h4>
-                  <p className="text-[11px] text-gray-600">Start querying and analyzing your newly ingested data in real-time.</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setIsSummaryModalOpen(false);
-                    navigate("/layout/query-list");
-                  }}
-                  className="px-4 py-2 self-start sm:self-auto text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow-md transition duration-200 active:scale-95 cursor-pointer flex items-center gap-1.5"
-                >
-                  Want to know more
-                  <ArrowForwardIcon sx={{ fontSize: 12 }} />
-                </button>
-              </div>
             </div>
 
             {/* Footer */}

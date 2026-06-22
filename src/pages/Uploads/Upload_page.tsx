@@ -52,6 +52,7 @@ export default function UploadPage() {
           if (!selectedWorkspace && wsList.length > 0) {
             setSelectedWorkspace(wsList[0].id.toString());
             localStorage.setItem("selected_workspace", wsList[0].id.toString());
+            localStorage.setItem("active_workspace_id", wsList[0].id.toString());
           }
         }
       } catch (e) {
@@ -64,6 +65,7 @@ export default function UploadPage() {
   useEffect(() => {
     if (selectedWorkspace) {
       localStorage.setItem("selected_workspace", selectedWorkspace);
+      localStorage.setItem("active_workspace_id", selectedWorkspace);
       if (!isInitialMount.current) {
          trackFiles();
       }
