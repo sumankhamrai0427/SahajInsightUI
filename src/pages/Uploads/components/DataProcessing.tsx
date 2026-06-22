@@ -482,12 +482,12 @@ export default function DataProcessing({ files, onRefresh }: Props) {
         </div>
 
         {csvFiles.length === 0 ? (
-          <div 
+          <div
             className="rounded-xl p-8 text-center border border-dashed text-sm"
-            style={{ 
-              borderColor: theme.border, 
+            style={{
+              borderColor: theme.border,
               color: theme.secondaryText,
-              backgroundColor: theme.surface 
+              backgroundColor: theme.surface
             }}
           >
             No uploaded files found.
@@ -818,15 +818,30 @@ export default function DataProcessing({ files, onRefresh }: Props) {
           >
             LLM Web Search History
           </label>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={`p-2 rounded-lg transition-all duration-300 flex items-center justify-center
+              ${isRefreshing 
+                ? 'bg-blue-100 text-[#7CA1F3] cursor-not-allowed' 
+                : 'hover:bg-blue-50 text-gray-500 hover:text-[#7CA1F3] cursor-pointer'
+              }`}
+            title="Refresh History"
+          >
+            <AutorenewRoundedIcon 
+              sx={{ fontSize: 18 }} 
+              className={`transition-all duration-500 ${isRefreshing ? 'animate-spin' : 'hover:rotate-180'}`}
+            />
+          </button>
         </div>
 
         {webSearchFiles.length === 0 ? (
-          <div 
+          <div
             className="rounded-xl p-8 text-center border border-dashed text-sm"
-            style={{ 
-              borderColor: theme.border, 
+            style={{
+              borderColor: theme.border,
               color: theme.secondaryText,
-              backgroundColor: theme.surface 
+              backgroundColor: theme.surface
             }}
           >
             No web search history found.
@@ -1017,24 +1032,23 @@ export default function DataProcessing({ files, onRefresh }: Props) {
         <button
           disabled={selectedCsvs.length === 0 && selectedWebs.length === 0}
           onClick={handleImportSummary}
-          className={`px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg transition-all flex items-center gap-2 ${
-            (selectedCsvs.length === 0 && selectedWebs.length === 0)
+          className={`px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg transition-all flex items-center gap-2 ${(selectedCsvs.length === 0 && selectedWebs.length === 0)
               ? "bg-gray-400 cursor-not-allowed opacity-50"
               : "bg-gradient-to-r from-blue-500 to-[#7CA1F3] hover:from-blue-600 hover:to-blue-500 cursor-pointer hover:shadow-xl active:scale-95"
-          }`}
+            }`}
         >
           Import ({selectedCsvs.length + selectedWebs.length} Selected)
         </button>
       </div>
 
       {/* -------------------- LOADER OVERLAY -------------------- */}
-    {isSummarizing && (
+      {isSummarizing && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white px-8 py-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 max-w-sm border">
             <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#7CA1F3] border-t-transparent" />
             <div className="text-center">
               <h3 className="font-semibold text-sm text-gray-800">Generating Summary...</h3>
-              <p className="text-xs text-gray-500 mt-1">AI is analyzing the selected content topics, details, and motives.</p>
+              <p className="text-xs text-gray-500 mt-1"> analyzing.....</p>
             </div>
           </div>
         </div>

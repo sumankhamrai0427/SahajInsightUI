@@ -19,9 +19,12 @@ class ApiServices {
     return axios.post(POST_APIS.get_rag_chat_history, body);
   }
 
-  // ---- SQL Chat APIs ----
+  // ---- SQL & Unified Chat APIs ----
   chat(body) {
     return axios.post(POST_APIS.chat_ai, body);
+  }
+  unifiedChat(body) {
+    return axios.post(POST_APIS.unified_chat, body);
   }
   llmWebSearch(body) {
     return axios.post(POST_APIS.llm_web_search, body);
