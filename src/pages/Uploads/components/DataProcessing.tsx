@@ -8,9 +8,13 @@ import Tippy from "@tippyjs/react";
 import "tippy.js/dist/tippy.css";
 import { useTheme } from "../../../theme";
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import ApiServices from "../../../services/ApiServices";
 import { useAuth } from "../../Auth/AuthContext";
 import ConfirmSaveView from "../../../Modal/ConfirmSaveView";
+import AnimatedToggleButton from "../../query-designer/components/AnimatedToggleButton";
+import TableParents from "../../query-designer/components/TableParents";
 import { Snackbar, Alert } from "@mui/material";
 
 interface Props {
@@ -64,6 +68,89 @@ export default function DataProcessing({ files, onRefresh }: Props) {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isIngesting, setIsIngesting] = useState(false);
   const [summaryResult, setSummaryResult] = useState("");
+
+  const [workspaces, setWorkspaces] = useState<any[]>([]);
+  const [editingFile, setEditingFile] = useState<any>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editTableName, setEditTableName] = useState("");
+  const [editWorkspaceId, setEditWorkspaceId] = useState<number | string>("");
+
+  const [isFetchingViewData, setIsFetchingViewData] = useState(false);
+  const [viewTableData, setViewTableData] = useState<{ rows: any[]; columns: any[]; insights: any[]; tableName: string }>({
+    rows: [],
+    columns: [],
+    insights: [],
+    tableName: "",
+  });
+  const [viewExplorerSelection, setViewExplorerSelection] = useState<string>("dataview");
+
+  useEffect(() => {
+    const fetchWorkspaces = async () => {
+      const userIdentifier = user?.email || user?.user_email || user?.user_id;
+      if (!userIdentifier) return;
+      try {
+        const payload = {
+            user_email: userIdentifier,
+            session_id: user?.session_id,
+            created_by: user?.user_id || ""
+        };
+        const res = await ApiServices.getUserWorkspaces(payload);
+        if (res.data?.isSuccess) {
+          setWorkspaces(res.data.data || []);
+        }
+      } catch (e) {
+        console.error("Error fetching workspaces", e);
+      }
+    };
+    fetchWorkspaces();
+  }, [user]);
+
+  useEffect(() => {
+    setCsvPage(1);
+    setWebPage(1);
+  }, [files]);
+
+  const handleOpenEdit = (file: any) => {
+    setEditingFile(file);
+    setEditTableName(file.table_name || "");
+    setEditWorkspaceId(file.workspace_id || "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTableName.trim()) {
+      setSnackbar({ open: true, message: "Table name is required", severity: "error" });
+      return;
+    }
+    setIsSavingEdit(true);
+    try {
+      const payload = {
+        session_id: user?.session_id,
+        created_by: user?.user_id,
+        file_id: editingFile.file_id || editingFile.id,
+        workspace_id: editWorkspaceId ? Number(editWorkspaceId) : null,
+        table_name: editTableName.trim()
+      };
+      const response = await ApiServices.updateUploadedFile(payload);
+      if (response.data?.isSuccess) {
+        setSnackbar({ open: true, message: "File updated successfully", severity: "success" });
+        setEditingFile(null);
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } else {
+        setSnackbar({ open: true, message: response.data?.message || "Failed to update file", severity: "error" });
+      }
+    } catch (error: any) {
+      console.error("Update failed", error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || "Error updating file",
+        severity: "error"
+      });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
   const handleToggleCsv = (fileName: string) => {
@@ -125,10 +212,11 @@ export default function DataProcessing({ files, onRefresh }: Props) {
   const handleWantToKnowMore = async () => {
     setIsIngesting(true);
     try {
+      const wsId = localStorage.getItem("selected_workspace") || localStorage.getItem("active_workspace_id") || user?.workspace_id;
       const payload = {
         session_id: user?.session_id,
         created_by: user?.user_id,
-        workspace_id: user?.workspace_id,
+        workspace_id: wsId,
         csv_files: selectedCsvs,
         web_searches: selectedWebs
       };
@@ -147,7 +235,10 @@ export default function DataProcessing({ files, onRefresh }: Props) {
     }
   };
 
-  const handleRowClick = (file: any) => {
+  const handleRowClick = async (file: any) => {
+    const tableName = file.table_name;
+    if (!tableName) return;
+
     try {
       const parsedData = {
         ...file,
@@ -163,8 +254,34 @@ export default function DataProcessing({ files, onRefresh }: Props) {
 
       setSelectedRowDetails(parsedData);
       setIsDetailsModalOpen(true);
+      setIsFetchingViewData(true);
+
+      const payload = {
+        session_id: user?.session_id,
+        created_by: user?.user_id,
+        table_name: tableName,
+      };
+
+      const response = await ApiServices.getTableData(payload);
+      const detail = response.data?.data?.details?.[tableName] || {};
+      setViewTableData({
+        rows: detail.data || [],
+        columns: detail.columns || [],
+        insights: Array.isArray(detail.insights)
+          ? detail.insights
+          : JSON.parse(detail.insights || "[]"),
+        tableName: tableName,
+      });
     } catch (err) {
-      console.error("Failed to parse row details", err);
+      console.error("Failed to parse row details or fetch table data", err);
+      setViewTableData({
+        rows: [],
+        columns: [],
+        insights: [],
+        tableName: tableName,
+      });
+    } finally {
+      setIsFetchingViewData(false);
     }
   };
 
@@ -390,27 +507,22 @@ export default function DataProcessing({ files, onRefresh }: Props) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
+                    Workspace Name
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
                     File Name
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
-                    Table Name
+                    Table Names
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Rows Affected
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Connected Queries
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Connected Reports
+                    Row Affected
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -484,6 +596,16 @@ export default function DataProcessing({ files, onRefresh }: Props) {
                         />
                       </div>
 
+                      {/* Workspace Name */}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-medium truncate"
+                          style={{ color: theme.primaryText }}
+                        >
+                          {file.workspace_name || 'N/A'}
+                        </div>
+                      </div>
+
                       {/* File Name */}
                       <div className="flex-1 min-w-0">
                         <div className="relative group">
@@ -499,7 +621,7 @@ export default function DataProcessing({ files, onRefresh }: Props) {
                         </div>
                       </div>
 
-                      {/* Table Name */}
+                      {/* Table Names */}
                       <div className="flex-1 min-w-0">
                         <div
                           className="text-sm font-medium truncate"
@@ -509,32 +631,13 @@ export default function DataProcessing({ files, onRefresh }: Props) {
                         </div>
                       </div>
 
-                      {/* Rows Affected */}
+                      {/* Row Affected */}
                       <div className="flex-1 min-w-0">
                         <div
                           className="text-sm font-medium text-center"
                           style={{ color: theme.primaryText }}
                         >
                           {file.rows_effected || 0}
-                        </div>
-                      </div>
-                      {/* Connected Queries */}
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-sm font-medium text-center"
-                          style={{ color: theme.primaryText }}
-                        >
-                          {file.connected_queries ?? 0}
-                        </div>
-                      </div>
-
-                      {/* Connected Reports */}
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-sm font-medium text-center"
-                          style={{ color: theme.primaryText }}
-                        >
-                          {file.connected_reports ?? 0}
                         </div>
                       </div>
 
@@ -580,7 +683,7 @@ export default function DataProcessing({ files, onRefresh }: Props) {
                         </div>
                       </div>
 
-                      {/* Create Date */}
+                      {/* Created Date */}
                       <div className="flex-1 min-w-0">
                         <div
                           className="text-sm font-medium text-center"
@@ -604,12 +707,37 @@ export default function DataProcessing({ files, onRefresh }: Props) {
                         </div>
                       </div>
 
-                      {/* Delete Icon */}
-                      <div className="flex-1 min-w-0 flex justify-center">
+                      {/* Actions */}
+                      <div className="flex-1 min-w-0 flex justify-center items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Tippy content="Edit file" theme="gray">
+                          <EditIcon
+                            onClick={() => handleOpenEdit(file)}
+                            sx={{
+                              fontSize: 20,
+                              color: "#9ca3af",
+                              cursor: "pointer",
+                              "&:hover": {
+                                color: theme.accent,
+                              },
+                            }}
+                          />
+                        </Tippy>
+                        <Tippy content="View file details" theme="gray">
+                          <VisibilityIcon
+                            onClick={() => handleRowClick(file)}
+                            sx={{
+                              fontSize: 20,
+                              color: "#9ca3af",
+                              cursor: "pointer",
+                              "&:hover": {
+                                color: "#10b981",
+                              },
+                            }}
+                          />
+                        </Tippy>
                         <Tippy content="Delete file" theme="gray">
                           <DeleteIcon
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={() => {
                               setDeleteFile(file);
                               setFileDependencies(null);
                               setIsConfirmSaveModalOpen(true);
@@ -969,21 +1097,7 @@ export default function DataProcessing({ files, onRefresh }: Props) {
               <div className="prose prose-sm max-w-none text-xs text-gray-800 leading-relaxed pb-4 border-b border-gray-100">
                 {renderMarkdown(summaryResult)}
               </div>
-              {/* Call to action card under the summary */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
-                <div className="space-y-0.5">
-                  <h4 className="text-xs font-bold text-blue-900">Curious to dig deeper?</h4>
-                  <p className="text-[11px] text-gray-600">Start querying and analyzing your newly ingested data in real-time.</p>
-                </div>
-                <button
-                  disabled={isIngesting}
-                  onClick={handleWantToKnowMore}
-                  className={`px-4 py-2 self-start sm:self-auto text-xs font-bold text-white rounded-lg shadow-sm transition duration-200 active:scale-95 flex items-center gap-1.5 ${isIngesting ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 hover:shadow-md cursor-pointer"}`}
-                >
-                  {isIngesting ? "Processing..." : "Want to know more"}
-                  <ArrowForwardIcon sx={{ fontSize: 12 }} />
-                </button>
-              </div>
+
             </div>
 
             {/* Footer */}
@@ -1007,127 +1121,162 @@ export default function DataProcessing({ files, onRefresh }: Props) {
         </div>
       )}
 
-      {/* modal for row details */}
+      {/* modal for row details (Table Explorer) */}
       {isDetailsModalOpen && selectedRowDetails && !isConfirmSaveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[560px] max-h-[80vh] rounded-xl shadow-2xl bg-white flex flex-col">
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-[1000px] max-w-[95vw] h-[85vh] max-h-[85vh] rounded-2xl shadow-2xl bg-white flex flex-col border overflow-hidden" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+            
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b">
+            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: theme.border }}>
               <div>
-                <h3
-                  className="text-sm font-semibold"
-                  style={{ color: theme.primaryText }}
-                >
-                  Connected Details
+                <h3 className="text-base font-bold flex items-center gap-2" style={{ color: theme.primaryText }}>
+                  Table Explorer: {selectedRowDetails.table_name}
                 </h3>
-                <p className="text-xs text-gray-500">
-                  File & dependency information
+                <p className="text-xs" style={{ color: theme.secondaryText }}>
+                  Source: {selectedRowDetails.file_name}
                 </p>
               </div>
 
+              <div className="flex items-center gap-4">
+                <AnimatedToggleButton
+                  options={[
+                    { label: "Schema", value: "metadata" },
+                    { label: "Data View", value: "dataview" },
+                    { label: "Insights", value: "insights" },
+                  ]}
+                  defaultSelected={1}
+                  onChange={(_idx, val) => setViewExplorerSelection(val as string)}
+                  borderRadius="0.75rem"
+                  activeBorderRadius="0.375rem"
+                  fontSize="0.75rem"
+                  buttonPadding="0.4rem 1rem"
+                  mode="text"
+                />
+
+                <button
+                  onClick={() => setIsDetailsModalOpen(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-4 min-h-0">
+              <TableParents
+                data={viewTableData.rows}
+                columns={viewTableData.columns}
+                insights={viewTableData.insights}
+                tableName={viewTableData.tableName}
+                viewSelection={viewExplorerSelection}
+                globalFilter=""
+                isLoading={isFetchingViewData}
+              />
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t flex justify-end gap-3 shrink-0" style={{ borderColor: theme.border }}>
               <button
                 onClick={() => setIsDetailsModalOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full
-                     hover:bg-gray-200 text-gray-500 hover:text-gray-700"
+                className="px-5 py-2 text-xs font-semibold rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 transition duration-200 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------- EDIT MODAL -------------------- */}
+      {editingFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-[450px] rounded-2xl shadow-2xl bg-white flex flex-col border overflow-hidden" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border }}>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: theme.primaryText }}>
+                  Edit File Details
+                </h3>
+                <p className="text-xs" style={{ color: theme.secondaryText }}>
+                  Update table name and workspace assignment
+                </p>
+              </div>
+              <button
+                onClick={() => setEditingFile(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition"
               >
                 ✕
               </button>
             </div>
 
             {/* Body */}
-            <div className="p-5 overflow-y-auto">
-
-              {/* File Info */}
-              <div className="mb-5 grid grid-cols-2 gap-4 text-xs">
-                <div className="bg-gray-50 rounded-xl p-3">
-                  <div className="text-gray-500 mb-1">File Name</div>
-                  <div className="font-medium text-gray-800">
-                    {selectedRowDetails.file_name}
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-xl p-3">
-                  <div className="text-gray-500 mb-1">Table Name</div>
-                  <div className="font-medium text-gray-800">
-                    {selectedRowDetails.table_name}
-                  </div>
-                </div>
+            <div className="p-6 space-y-4">
+              {/* File Name (ReadOnly) */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold" style={{ color: theme.secondaryText }}>File Name</label>
+                <input
+                  type="text"
+                  value={editingFile.file_name || ""}
+                  disabled
+                  className="w-full px-4 py-2 border rounded-xl text-xs bg-gray-100 cursor-not-allowed"
+                  style={{ borderColor: theme.border }}
+                />
               </div>
 
-              {/* Queries Section */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-gray-700">
-                    Connected Queries
-                  </h4>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                    {selectedRowDetails.query_titles.length}
-                  </span>
-                </div>
-
-                {selectedRowDetails.query_titles.length ? (
-                  <div className="space-y-2">
-                    {selectedRowDetails.query_titles.map((q: string, i: number) => (
-                      <div
-                        key={i}
-                        className="flex items-start gap-2 p-3 rounded-xl bg-gray-100 hover:bg-gray-200 transition"
-                      >
-                        <span className="mt-0.5 text-xs text-blue-600 font-semibold">
-                          Q{i + 1}
-                        </span>
-                        <span className="text-xs text-gray-800">{q}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-gray-400 italic">
-                    No connected queries
-                  </div>
-                )}
+              {/* Table Name */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold" style={{ color: theme.secondaryText }}>Table Name</label>
+                <input
+                  type="text"
+                  value={editTableName}
+                  onChange={(e) => setEditTableName(e.target.value)}
+                  placeholder="Enter Table Name"
+                  className="w-full px-4 py-2 border rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#7CA1F3]"
+                  style={{ borderColor: theme.border, backgroundColor: theme.surface, color: theme.primaryText }}
+                />
               </div>
 
-              {/* Reports Section */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-gray-700">
-                    Connected Reports
-                  </h4>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                    {selectedRowDetails.report_names.length}
-                  </span>
-                </div>
-
-                {selectedRowDetails.report_names.length ? (
-                  <div className="space-y-2">
-                    {selectedRowDetails.report_names.map((r: string, i: number) => (
-                      <div
-                        key={i}
-                        className="flex items-start gap-2 p-3 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
-                      >
-                        <span className="mt-0.5 text-xs text-green-600 font-semibold">
-                          R{i + 1}
-                        </span>
-                        <span className="text-xs text-gray-800">{r}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-gray-400 italic">
-                    No connected reports
-                  </div>
-                )}
+              {/* Workspace Selection */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold" style={{ color: theme.secondaryText }}>Select Workspace</label>
+                <select
+                  value={editWorkspaceId}
+                  onChange={(e) => setEditWorkspaceId(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#7CA1F3]"
+                  style={{ borderColor: theme.border, backgroundColor: theme.surface, color: theme.primaryText }}
+                >
+                  <option value="" disabled>Select Workspace</option>
+                  {workspaces.map((ws) => (
+                    <option key={ws.id} value={ws.id}>
+                      {ws.workspace_name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-3 border-t flex justify-end">
+            <div className="px-6 py-4 border-t flex justify-end gap-3" style={{ borderColor: theme.border }}>
               <button
-                onClick={() => setIsDetailsModalOpen(false)}
-                className="px-4 py-1.5 text-xs font-medium rounded-xl
-                     bg-gray-200 hover:bg-gray-300 text-gray-700"
+                onClick={() => setEditingFile(null)}
+                className="px-5 py-2 text-xs font-semibold rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 transition duration-200 cursor-pointer"
               >
-                Close
+                Cancel
+              </button>
+              <button
+                disabled={isSavingEdit}
+                onClick={handleSaveEdit}
+                className={`px-5 py-2 text-xs font-bold rounded-xl text-white shadow-md transition duration-200 flex items-center gap-1.5 ${isSavingEdit ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-blue-500 to-[#7CA1F3] hover:from-blue-600 hover:to-blue-500 cursor-pointer"}`}
+              >
+                {isSavingEdit ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
               </button>
             </div>
           </div>

@@ -21,7 +21,23 @@ interface StoredMessage {
   row_count: number;
   query_time: number;
   is_success: boolean;
+  ai_responded_at?: string;
 }
+
+const formatTimestamp = (dateString?: string) => {
+  if (!dateString) return "";
+  try {
+    let normalized = dateString;
+    if (dateString.includes(" ") && !dateString.includes("T")) {
+      normalized = dateString.replace(" ", "T");
+    }
+    const d = new Date(normalized);
+    if (isNaN(d.getTime())) return dateString;
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  } catch {
+    return dateString;
+  }
+};
 
 interface StoredChatData {
   created_by: string;
@@ -206,12 +222,13 @@ export default function Chat({
     messages.map((m, index) => ({
       query_id: m.id || index + 1,
       query: m.query,
-      created_at: m.actual_created_at,
+      created_at: m.actual_created_at || new Date().toISOString(),
       ai_response: m.ai_response,
       is_execute: m.is_execute === 1,
       row_count: m.row_count,
       query_time: m.query_time,
       is_success: m.is_execute === 1,
+      ai_responded_at: m.updated_at || m.actual_created_at || new Date().toISOString(),
     }));
 
   const getLastMessage = (messages: any[] = []) =>
@@ -321,6 +338,7 @@ export default function Chat({
     }
 
     const queryId = Date.now();
+    const queryTime = new Date().toISOString();
 
     const chatStore = getChatStore(
       userData?.user_id || "unknown",
@@ -330,7 +348,7 @@ export default function Chat({
     chatStore.messages.push({
       query_id: queryId,
       query: inputValue.trim(),
-      created_at: new Date().toISOString(),
+      created_at: queryTime,
       ai_response: "",
       is_execute: false,
       row_count: 0,
@@ -340,24 +358,11 @@ export default function Chat({
 
     saveChatStore(chatStore);
 
-    // const newMessage: ChatHistoryItem = {
-    //   query_id: Date.now(), // temporary unique id
-    //   session_id: chat.session_id,
-    //   message: inputValue,
-    //   created_at: new Date().toISOString(),
-    // };
-
-    // const newHistory = [...messageHistory, newMessage];
-
-    // setMessageHistory(newHistory);
-    // localStorage.setItem("chat_history", JSON.stringify(newHistory));
-
     setIsSending(true);
 
     try {
       const payload = {
         session_id: chat.session_id,
-        // created_by: userData?.user_id || "unknown",
         user_query: inputValue,
       };
 
@@ -374,6 +379,7 @@ export default function Chat({
 
       if (currentMsg) {
         currentMsg.ai_response = result.ai_response || "";
+        currentMsg.ai_responded_at = new Date().toISOString();
       }
 
       saveChatStore(updatedStore);
@@ -390,14 +396,20 @@ export default function Chat({
       setInputValue("");
       setTableData(null);
       setIsScriptRunSuccess(false);
-      if (result.ai_response && result.ai_response.trim()) {
-      }
     } catch (error: any) {
       const errorMessage =
         error?.response?.data?.message || "Something went wrong";
       setInputError(errorMessage);
       setIsScriptGenerated(false);
       setIsScriptRunSuccess(false);
+
+      // Clean up failed message from local storage
+      const updatedStore = getChatStore(
+        userData?.user_id || "unknown",
+        chat.session_id
+      );
+      updatedStore.messages = updatedStore.messages.filter(m => m.query_id !== queryId);
+      saveChatStore(updatedStore);
     } finally {
       setIsSending(false);
     }
@@ -820,6 +832,11 @@ export default function Chat({
                   ✔ Executed ({item.row_count} rows)
                 </div>
               )}
+
+              <div className="text-[9px] text-gray-500 mt-2 text-right font-light select-none">
+                Queried: {formatTimestamp(item.created_at)}
+                {item.ai_response && ` | Answered: ${formatTimestamp(item.ai_responded_at || item.created_at)}`}
+              </div>
             </div>
           ))}
         </div>

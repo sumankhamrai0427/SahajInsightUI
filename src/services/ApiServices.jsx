@@ -86,6 +86,10 @@ class ApiServices {
     return axios.post(POST_APIS.delete_uploaded_file, body);
   }
 
+  updateUploadedFile(body) {
+    return axios.post(POST_APIS.update_uploaded_file, body);
+  }
+
 
   getUploadProgress(body) {
     return axios.post(POST_APIS.upload_progress, body);

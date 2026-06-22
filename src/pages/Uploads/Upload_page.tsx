@@ -5,6 +5,7 @@ import DataProcessing from "./components/DataProcessing";
 import ApiService from "../../services/ApiServices";
 import { useAuth } from "../Auth/AuthContext";
 import TableImportModal from "./modal/table-import-modal";
+import { Dropdown } from "primereact/dropdown";
 
 export default function UploadPage() {
   const { theme } = useTheme();
@@ -32,7 +33,56 @@ export default function UploadPage() {
   const [searchResults, setSearchResults] = useState("");
 
   const [workspaces, setWorkspaces] = useState<any[]>([]);
-  const [selectedWorkspace, setSelectedWorkspace] = useState<string>(localStorage.getItem("selected_workspace") || "");
+  const [selectedWorkspace, setSelectedWorkspace] = useState<string>("all");
+  const [filterQuery, setFilterQuery] = useState("");
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  const handleCreateWorkspaceInline = async (wsName: string) => {
+    setIsCreatingWorkspace(true);
+    try {
+      const payload = {
+        workspace_name: wsName,
+        session_id: sessionId,
+        created_by: createdBy,
+        user_email: user?.email || user?.user_email || user?.user_id
+      };
+      const response = await ApiService.createWorkspace(payload);
+      if (response.data?.isSuccess) {
+        const newWsId = response.data.data?.workspace_id;
+        
+        // Refresh workspaces list
+        const userIdentifier = user?.email || user?.user_email || user?.user_id;
+        const res = await ApiService.getUserWorkspaces({
+          user_email: userIdentifier,
+          session_id: sessionId,
+          created_by: createdBy
+        });
+        if (res.data?.isSuccess) {
+          const wsList = res.data.data || [];
+          setWorkspaces(wsList);
+        }
+        
+        // Auto-select the newly created workspace
+        if (newWsId) {
+          setSelectedWorkspace(newWsId.toString());
+        }
+        
+        setFilterQuery("");
+      } else {
+        alert(response.data?.message || "Failed to create workspace.");
+      }
+    } catch (error: any) {
+      console.error("Workspace creation failed:", error);
+      alert(error.response?.data?.message || "Error creating workspace.");
+    } finally {
+      setIsCreatingWorkspace(false);
+    }
+  };
+
+  useEffect(() => {
+    localStorage.setItem("selected_workspace", "all");
+    localStorage.setItem("active_workspace_id", "all");
+  }, []);
 
   useEffect(() => {
     const fetchWorkspaces = async () => {
@@ -48,12 +98,6 @@ export default function UploadPage() {
         if (res.data?.isSuccess) {
           const wsList = res.data.data || [];
           setWorkspaces(wsList);
-          
-          if (!selectedWorkspace && wsList.length > 0) {
-            setSelectedWorkspace(wsList[0].id.toString());
-            localStorage.setItem("selected_workspace", wsList[0].id.toString());
-            localStorage.setItem("active_workspace_id", wsList[0].id.toString());
-          }
         }
       } catch (e) {
         console.error("Error fetching workspaces", e);
@@ -183,6 +227,56 @@ export default function UploadPage() {
       setIsProcessing(false);
     }
   }
+
+  const getDropdownOptions = () => {
+    const baseOptions = [
+      { label: "All Workspaces", value: "all" },
+      ...workspaces.map((ws) => ({
+        label: ws.workspace_name,
+        value: ws.id.toString(),
+      }))
+    ];
+    
+    const trimmed = filterQuery.trim();
+    if (trimmed) {
+      const exists = workspaces.some(ws => ws.workspace_name.toLowerCase() === trimmed.toLowerCase());
+      if (!exists && trimmed.toLowerCase() !== "all workspaces" && trimmed.toLowerCase() !== "all") {
+        baseOptions.push({
+          label: `Create Workspace: "${trimmed}"`,
+          value: `CREATE_WS:${trimmed}`
+        });
+      }
+    }
+    return baseOptions;
+  };
+
+  const workspaceItemTemplate = (option: any) => {
+    if (option.value && option.value.startsWith("CREATE_WS:")) {
+      const wsName = option.value.replace("CREATE_WS:", "");
+      return (
+        <div className="flex items-center gap-2 text-blue-600 font-semibold py-1">
+          <input
+            type="checkbox"
+            className="w-3.5 h-3.5 rounded text-blue-600 cursor-pointer"
+            checked={false}
+            readOnly
+          />
+          <span>Create Workspace: "{wsName}"</span>
+        </div>
+      );
+    }
+    return <span className="py-1">{option.label}</span>;
+  };
+
+  const handleWorkspaceDropdownChange = async (val: string) => {
+    if (val && val.startsWith("CREATE_WS:")) {
+      const wsName = val.replace("CREATE_WS:", "");
+      await handleCreateWorkspaceInline(wsName);
+    } else {
+      setSelectedWorkspace(val || "all");
+    }
+  };
+
   return (
     <div className="w-full rounded-xl p-8">
       <h2
@@ -200,21 +294,64 @@ export default function UploadPage() {
       </p>
 
       {/* WORKSPACE SELECTION */}
-      <div className="flex justify-center mb-6">
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium" style={{ color: theme.primaryText }}>Select Workspace:</label>
-          <select 
-            className="border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7CA1F3]"
-            style={{ borderColor: theme.border, backgroundColor: theme.surface, color: theme.primaryText }}
-            value={selectedWorkspace}
-            onChange={(e) => setSelectedWorkspace(e.target.value)}
-          >
-            <option value="" disabled>Select a workspace</option>
-            {workspaces.map((ws) => (
-              <option key={ws.id} value={ws.id}>{ws.workspace_name}</option>
-            ))}
-          </select>
-        </div>
+      <div className="flex justify-start items-center gap-3 mb-6 px-1">
+        <label className="text-sm font-medium" style={{ color: theme.primaryText }}>Create Workspace:</label>
+        <Dropdown
+          value={selectedWorkspace}
+          options={getDropdownOptions()}
+          onChange={(e) => handleWorkspaceDropdownChange(e.value)}
+          filter
+          onFilter={(e: any) => setFilterQuery(e.filter || "")}
+          onHide={() => setFilterQuery("")}
+          itemTemplate={workspaceItemTemplate}
+          filterBy="label"
+          showClear={false}
+          filterPlaceholder="Search or type to create workspace..."
+          placeholder="Select a workspace"
+          className="w-72 h-10 border rounded-xl flex items-center justify-between text-xs px-3 focus:outline-none transition-all duration-200"
+          style={{
+            borderColor: theme.border,
+            backgroundColor: theme.surface,
+            color: theme.primaryText,
+          }}
+          panelClassName="bg-white rounded-xl border border-gray-100 overflow-hidden text-xs max-w-72 shadow-lg"
+          panelStyle={{
+            backgroundColor: theme.surface,
+            color: theme.primaryText,
+          }}
+          pt={{
+            root: { className: "cursor-pointer" },
+            input: {
+              className: `text-xs font-medium px-3 py-2 h-full flex items-center leading-tight overflow-hidden text-ellipsis whitespace-nowrap`,
+              style: { color: theme.primaryText }
+            },
+            trigger: {
+              className: "w-8 flex items-center justify-center text-gray-400 shrink-0",
+            },
+            list: { className: "p-1" },
+            item: ({ context }: any) => ({
+              className: `px-3 py-2 rounded-xl text-xs cursor-pointer transition-colors mb-0.5 whitespace-normal break-words ${
+                context.selected
+                  ? "bg-[#7CA1F3]/20 font-semibold"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-800"
+              }`,
+              style: { color: theme.primaryText }
+            }),
+            itemLabel: { className: "font-medium" },
+            filterContainer: {
+              className: "px-3 py-2 border-b",
+              style: { borderColor: theme.border }
+            },
+            filterInput: {
+              className: "w-full px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-1 focus:ring-[#7CA1F3]",
+              style: {
+                borderColor: theme.border,
+                backgroundColor: theme.surface,
+                color: theme.primaryText
+              }
+            }
+          }}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
@@ -223,8 +360,13 @@ export default function UploadPage() {
             key={resetKey}
             onUploadComplete={uploadFiles}
             theme={theme}
-            disabled={isUploading || isProcessing}
+            disabled={isUploading || isProcessing || selectedWorkspace === "all"}
           />
+          {selectedWorkspace === "all" && (
+            <p className="text-xs text-amber-500 mt-2 text-center font-semibold">
+              Please select a specific workspace to upload files.
+            </p>
+          )}
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
@@ -240,8 +382,8 @@ export default function UploadPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter query (e.g. Retail industry sales 2026)"
-                disabled={isSearching}
+                placeholder={selectedWorkspace === "all" ? "Select a specific workspace to search" : "Enter query (e.g. Retail industry sales 2026)"}
+                disabled={isSearching || selectedWorkspace === "all"}
                 className="w-full px-4 py-2 border rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#7CA1F3]"
                 style={{
                   borderColor: theme.border,
@@ -262,10 +404,15 @@ export default function UploadPage() {
               />
             </div>
           </div>
+          {selectedWorkspace === "all" && (
+            <p className="text-xs text-amber-500 text-center font-semibold mt-1">
+              Please select a specific workspace to search.
+            </p>
+          )}
           <button
             onClick={handleWebSearch}
-            disabled={isSearching || !searchQuery.trim()}
-            className={`w-full mt-4 bg-[#7CA1F3] hover:bg-blue-600 h-10 text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${isSearching || !searchQuery.trim() ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+            disabled={isSearching || !searchQuery.trim() || selectedWorkspace === "all"}
+            className={`w-full mt-4 bg-[#7CA1F3] hover:bg-blue-600 h-10 text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${isSearching || !searchQuery.trim() || selectedWorkspace === "all" ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
               }`}
           >
             {isSearching ? (

@@ -31,7 +31,23 @@ interface StoredMessage {
   row_count: number;
   query_time: number;
   is_success: boolean;
+  ai_responded_at?: string;
 }
+
+const formatTimestamp = (dateString?: string) => {
+  if (!dateString) return "";
+  try {
+    let normalized = dateString;
+    if (dateString.includes(" ") && !dateString.includes("T")) {
+      normalized = dateString.replace(" ", "T");
+    }
+    const d = new Date(normalized);
+    if (isNaN(d.getTime())) return dateString;
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  } catch {
+    return dateString;
+  }
+};
 
 interface ChatSession {
   id?: number;
@@ -120,7 +136,7 @@ const QueryDesignerManage = () => {
       const userIdentifier = user?.email || user?.user_email || user?.user_id;
       if (userIdentifier) {
         try {
-          const response = await ApiServices.getUserWorkspaces({ 
+          const response = await ApiServices.getUserWorkspaces({
             user_email: userIdentifier,
             session_id: user?.session_id,
             created_by: user?.user_id
@@ -130,11 +146,11 @@ const QueryDesignerManage = () => {
             setRealWorkspaces(fetchedWorkspaces);
             const wsNames = fetchedWorkspaces.map((w: any) => w.workspace_name);
             setWorkspaces(wsNames.length > 0 ? wsNames : ["default"]);
-            
+
             // Sync with global active workspace if possible
             const globalActiveId = localStorage.getItem("active_workspace_id");
             const activeObj = fetchedWorkspaces.find((w: any) => w.id.toString() === globalActiveId);
-            
+
             let activeWs = "default";
             if (activeObj) {
               activeWs = activeObj.workspace_name;
@@ -144,7 +160,7 @@ const QueryDesignerManage = () => {
               const cachedActiveWs = localStorage.getItem("ig_active_workspace");
               if (cachedActiveWs) activeWs = cachedActiveWs;
             }
-            
+
             setActiveWorkspace(activeWs);
             localStorage.setItem("ig_active_workspace", activeWs);
             const syncObj = fetchedWorkspaces.find((w: any) => w.workspace_name === activeWs);
@@ -158,7 +174,7 @@ const QueryDesignerManage = () => {
         }
       }
     };
-    
+
     fetchRealWorkspaces();
   }, [user]);
 
@@ -405,6 +421,7 @@ const QueryDesignerManage = () => {
       row_count: m.row_count || 0,
       query_time: m.query_time || 0,
       is_success: m.is_execute === 1,
+      ai_responded_at: m.updated_at || m.actual_created_at || new Date().toISOString(),
     }));
 
     setChatMessages(msgs);
@@ -451,10 +468,11 @@ const QueryDesignerManage = () => {
     setExecutionMeta(null);
 
     const tempQueryId = Date.now();
+    const queryTime = new Date().toISOString();
     const newMsg: StoredMessage = {
       query_id: tempQueryId,
       query: queryText,
-      created_at: new Date().toISOString(),
+      created_at: queryTime,
       ai_response: "",
       is_execute: false,
       row_count: 0,
@@ -462,7 +480,18 @@ const QueryDesignerManage = () => {
       is_success: false,
     };
 
-    setChatMessages((prev) => [...prev, newMsg]);
+    if (agentMode === "sql") {
+      setChatMessages((prev) => [...prev, newMsg]);
+    } else {
+      const tempRagMsg = {
+        id: tempQueryId,
+        user_query: queryText,
+        ai_response: "",
+        created_at: queryTime,
+      };
+      setRagChatMessages((prev) => [...prev, tempRagMsg]);
+    }
+
     setIsSendingMessage(true);
     setChatInputValue("");
 
@@ -491,13 +520,14 @@ const QueryDesignerManage = () => {
           ai_response: aiRespText
         });
 
-        const newRagMsg = {
-          id: tempQueryId,
-          user_query: queryText,
-          ai_response: aiRespText,
-          created_at: new Date().toISOString()
-        };
-        setRagChatMessages(prev => [...prev, newRagMsg]);
+        // Update the RAG message in chat state
+        setRagChatMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempQueryId
+              ? { ...msg, ai_response: aiRespText, ai_responded_at: new Date().toISOString() }
+              : msg
+          )
+        );
       } else {
         const wsId = getActiveWorkspaceId();
         const payload = {
@@ -513,7 +543,9 @@ const QueryDesignerManage = () => {
         // Update the message in chat state
         setChatMessages((prev) =>
           prev.map((msg) =>
-            msg.query_id === tempQueryId ? { ...msg, ai_response: aiRespText } : msg
+            msg.query_id === tempQueryId
+              ? { ...msg, ai_response: aiRespText, ai_responded_at: new Date().toISOString() }
+              : msg
           )
         );
 
@@ -524,6 +556,12 @@ const QueryDesignerManage = () => {
     } catch (err: any) {
       const errMsg = err?.response?.data?.message || err?.message || "Failed to process query.";
       setChatInputError(errMsg);
+      // Clean up temporary message on error
+      if (agentMode === "sql") {
+        setChatMessages((prev) => prev.filter((msg) => msg.query_id !== tempQueryId));
+      } else {
+        setRagChatMessages((prev) => prev.filter((msg) => msg.id !== tempQueryId));
+      }
     } finally {
       setIsSendingMessage(false);
     }
@@ -813,8 +851,8 @@ const QueryDesignerManage = () => {
                   key={ws}
                   onClick={() => handleSelectWorkspace(ws)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${activeWorkspace === ws
-                      ? "bg-blue-50 text-[#5433FF]"
-                      : "text-gray-600 hover:bg-gray-100"
+                    ? "bg-blue-50 text-[#5433FF]"
+                    : "text-gray-600 hover:bg-gray-100"
                     }`}
                 >
                   <MdFolder className="text-sm shrink-0" />
@@ -867,8 +905,8 @@ const QueryDesignerManage = () => {
                   key={q.id || q.query_title}
                   onClick={() => handleSelectQuerySession(q)}
                   className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition ${activeQuery?.query_title === q.query_title
-                      ? "bg-gray-100 border border-gray-200 text-gray-950 font-medium"
-                      : "hover:bg-gray-50 border border-transparent text-gray-600"
+                    ? "bg-gray-100 border border-gray-200 text-gray-950 font-medium"
+                    : "hover:bg-gray-50 border border-transparent text-gray-600"
                     }`}
                 >
                   <MdChatBubbleOutline className="text-sm shrink-0 mt-0.5 text-gray-400" />
@@ -987,10 +1025,10 @@ const QueryDesignerManage = () => {
           >
             {agentMode === "sql" ? (
               chatMessages.length === 0 ? (
-                // Greeting/Welcome screen matching DAgent AI Assistant layout
+                // Greeting/Welcome screen matching SahajInsight AI Assistant layout
                 <div className="max-w-3xl mx-auto py-8 text-center space-y-6">
                   <div className="inline-block px-4 py-1.5 bg-blue-50 text-[#5433FF] rounded-full text-xs font-bold uppercase tracking-wider">
-                    DAgent AI Assistant / SQL SESSION
+                    SahajInsight AI Assistant / SQL SESSION
                   </div>
                   <h2 className="text-xl font-bold text-gray-800 leading-tight">
                     Speak to your data. What would you like to analyze today?
@@ -1017,7 +1055,10 @@ const QueryDesignerManage = () => {
                       <div className="flex justify-end">
                         <div className="bg-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tr-none text-xs max-w-[80%] shadow-sm leading-relaxed">
                           <span className="font-semibold block mb-0.5 text-[10px] text-gray-500">You</span>
-                          {msg.query}
+                          <div>{msg.query}</div>
+                          <div className="text-[9px] text-gray-400 mt-1.5 text-right font-light select-none">
+                            Queried: {formatTimestamp(msg.created_at)}
+                          </div>
                         </div>
                       </div>
 
@@ -1025,7 +1066,7 @@ const QueryDesignerManage = () => {
                       {msg.ai_response && (
                         <div className="flex justify-start">
                           <div className="bg-white border border-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tl-none text-xs max-w-[80%] shadow-sm leading-relaxed">
-                            <span className="font-semibold block mb-1 text-[10px] text-[#5433FF]">DAgent AI Assistant</span>
+                            <span className="font-semibold block mb-1 text-[10px] text-[#5433FF]">SahajInsight AI Assistant</span>
                             <span className="text-gray-500 italic block mb-2">Procedure code generated below</span>
                             <div className="flex justify-between items-center gap-4 bg-gray-50 border border-gray-100 p-2 rounded-lg text-[10px] font-mono mb-1">
                               <span>SQL Query Ready</span>
@@ -1042,6 +1083,9 @@ const QueryDesignerManage = () => {
                                 Load Editor
                               </button>
                             </div>
+                            <div className="text-[9px] text-gray-400 mt-2 text-right font-light select-none">
+                              Responded: {formatTimestamp(msg.ai_responded_at || msg.created_at)}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1057,7 +1101,7 @@ const QueryDesignerManage = () => {
               ) : ragChatMessages.length === 0 ? (
                 <div className="max-w-3xl mx-auto py-8 text-center space-y-6">
                   <div className="inline-block px-4 py-1.5 bg-purple-50 text-purple-600 rounded-full text-xs font-bold uppercase tracking-wider">
-                    DAgent AI Assistant / RAG SESSION
+                    SahajInsight AI Assistant / RAG SESSION
                   </div>
                   <h2 className="text-xl font-bold text-gray-800 leading-tight">
                     Chat with your documents and web searches
@@ -1067,20 +1111,26 @@ const QueryDesignerManage = () => {
                   </p>
                 </div>
               ) : (
-                <div className="max-w-4xl mx-auto space-y-4">
+                 <div className="max-w-4xl mx-auto space-y-4">
                   {ragChatMessages.map((msg, idx) => (
                     <div key={msg.id || idx} className="space-y-2">
                       <div className="flex justify-end">
                         <div className="bg-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tr-none text-xs max-w-[80%] shadow-sm leading-relaxed">
                           <span className="font-semibold block mb-0.5 text-[10px] text-gray-500">You</span>
-                          {msg.user_query}
+                          <div>{msg.user_query}</div>
+                          <div className="text-[9px] text-gray-400 mt-1.5 text-right font-light select-none">
+                            Queried: {formatTimestamp(msg.created_at)}
+                          </div>
                         </div>
                       </div>
                       {msg.ai_response && (
                         <div className="flex justify-start">
                           <div className="bg-white border border-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tl-none text-xs max-w-[80%] shadow-sm leading-relaxed whitespace-pre-wrap">
-                            <span className="font-semibold block mb-1 text-[10px] text-purple-600">DAgent AI Assistant</span>
-                            {msg.ai_response}
+                            <span className="font-semibold block mb-1 text-[10px] text-purple-600">SahajInsight AI Assistant</span>
+                            <div>{msg.ai_response}</div>
+                            <div className="text-[9px] text-gray-400 mt-2 text-right font-light select-none">
+                              Responded: {formatTimestamp(msg.ai_responded_at || msg.created_at)}
+                            </div>
                           </div>
                         </div>
                       )}

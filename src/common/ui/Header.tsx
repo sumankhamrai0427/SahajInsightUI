@@ -52,27 +52,25 @@ export default function Header() {
 
   useEffect(() => {
     const fetchMyWorkspaces = async () => {
-      // Find the user identifier (could be email or user_id for company users)
+      const userData = JSON.parse(localStorage.getItem("ig_user") || "{}");
       const userIdentifier = user?.email || user?.user_email || user?.user_id;
       if (userIdentifier && user?.role !== 'superadmin') {
         try {
           const response = await ApiServices.getUserWorkspaces({ 
             user_email: userIdentifier,
-            session_id: userData?.session_id,
-            created_by: userData?.user_id
+            session_id: userData?.session_id || user?.session_id,
+            created_by: userData?.user_id || user?.user_id
           });
           if (response.data?.isSuccess) {
             const fetchedWorkspaces = response.data.data || [];
             setWorkspaces(fetchedWorkspaces);
-            if (fetchedWorkspaces.length > 0) {
-              // Optionally load last selected from localStorage
-              const saved = localStorage.getItem('selected_workspace');
-              if (saved && fetchedWorkspaces.find(w => w.id.toString() === saved)) {
-                setSelectedWorkspace(saved);
-              } else {
-                setSelectedWorkspace(fetchedWorkspaces[0].id.toString());
-                localStorage.setItem('selected_workspace', fetchedWorkspaces[0].id.toString());
-              }
+            
+            const saved = localStorage.getItem('selected_workspace');
+            if (saved && (saved === "all" || fetchedWorkspaces.find(w => w.id.toString() === saved))) {
+              setSelectedWorkspace(saved);
+            } else {
+              setSelectedWorkspace("all");
+              localStorage.setItem('selected_workspace', "all");
             }
           }
         } catch (error) {
@@ -90,6 +88,7 @@ export default function Header() {
     const val = e.target.value;
     setSelectedWorkspace(val);
     localStorage.setItem('selected_workspace', val);
+    localStorage.setItem('active_workspace_id', val);
     // Reload to apply workspace context if needed
     window.location.reload();
   };
@@ -123,6 +122,7 @@ export default function Header() {
                 onChange={handleWorkspaceChange}
                 className="px-3 py-1 mr-4 border border-gray-300 rounded-md bg-white text-gray-700 focus:outline-none text-sm font-medium"
               >
+                <option value="all">All Workspaces</option>
                 {workspaces.map(ws => (
                   <option key={ws.id} value={ws.id}>{ws.workspace_name}</option>
                 ))}
