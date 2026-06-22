@@ -206,7 +206,7 @@ const QueryDesignerManage = () => {
 
   const fetchRagHistory = async () => {
     const wsId = getActiveWorkspaceId();
-    if (!wsId || !user?.user_id) return;
+    if (!user?.user_id) return;
     setIsFetchingRagHistory(true);
     try {
       const response = await ApiServices.getRagChatHistory({
@@ -451,7 +451,6 @@ const QueryDesignerManage = () => {
     try {
       if (agentMode === "rag") {
         const wsId = getActiveWorkspaceId();
-        if (!wsId) throw new Error("Please select a workspace first.");
 
         const payload = {
           company_code: user?.company_code,

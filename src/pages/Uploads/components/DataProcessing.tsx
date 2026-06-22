@@ -62,6 +62,7 @@ export default function DataProcessing({ files, onRefresh }: Props) {
   const [selectedCsvs, setSelectedCsvs] = useState<string[]>([]);
   const [selectedWebs, setSelectedWebs] = useState<string[]>([]);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isIngesting, setIsIngesting] = useState(false);
   const [summaryResult, setSummaryResult] = useState("");
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
@@ -118,6 +119,31 @@ export default function DataProcessing({ files, onRefresh }: Props) {
       alert(error?.response?.data?.message || "Error generating summary.");
     } finally {
       setIsSummarizing(false);
+    }
+  };
+
+  const handleWantToKnowMore = async () => {
+    setIsIngesting(true);
+    try {
+      const payload = {
+        session_id: user?.session_id,
+        created_by: user?.user_id,
+        workspace_id: user?.workspace_id,
+        csv_files: selectedCsvs,
+        web_searches: selectedWebs
+      };
+      const response = await ApiServices.ingestSelectedSources(payload);
+      if (response.data?.isSuccess) {
+        setIsSummaryModalOpen(false);
+        navigate("/layout/query-list");
+      } else {
+        alert(response.data?.message || "Failed to ingest selected sources.");
+      }
+    } catch (error: any) {
+      console.error("Ingestion failed", error);
+      alert(error?.response?.data?.message || "Error ingesting selected sources.");
+    } finally {
+      setIsIngesting(false);
     }
   };
 
@@ -874,13 +900,25 @@ export default function DataProcessing({ files, onRefresh }: Props) {
       </div>
 
       {/* -------------------- LOADER OVERLAY -------------------- */}
-      {isSummarizing && (
+    {isSummarizing && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white px-8 py-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 max-w-sm border">
             <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#7CA1F3] border-t-transparent" />
             <div className="text-center">
               <h3 className="font-semibold text-sm text-gray-800">Generating Summary...</h3>
               <p className="text-xs text-gray-500 mt-1">AI is analyzing the selected content topics, details, and motives.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isIngesting && (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white px-8 py-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 max-w-sm border">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#7CA1F3] border-t-transparent" />
+            <div className="text-center">
+              <h3 className="font-semibold text-sm text-gray-800">Ingesting Data...</h3>
+              <p className="text-xs text-gray-500 mt-1">Preparing selected files and web searches for RAG Chat.</p>
             </div>
           </div>
         </div>
@@ -939,13 +977,11 @@ export default function DataProcessing({ files, onRefresh }: Props) {
                   <p className="text-[11px] text-gray-600">Start querying and analyzing your newly ingested data in real-time.</p>
                 </div>
                 <button
-                  onClick={() => {
-                    setIsSummaryModalOpen(false);
-                    navigate("/layout/query-list");
-                  }}
-                  className="px-4 py-2 self-start sm:self-auto text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow-md transition duration-200 active:scale-95 cursor-pointer flex items-center gap-1.5"
+                  disabled={isIngesting}
+                  onClick={handleWantToKnowMore}
+                  className={`px-4 py-2 self-start sm:self-auto text-xs font-bold text-white rounded-lg shadow-sm transition duration-200 active:scale-95 flex items-center gap-1.5 ${isIngesting ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 hover:shadow-md cursor-pointer"}`}
                 >
-                  Want to know more
+                  {isIngesting ? "Processing..." : "Want to know more"}
                   <ArrowForwardIcon sx={{ fontSize: 12 }} />
                 </button>
               </div>
@@ -960,13 +996,11 @@ export default function DataProcessing({ files, onRefresh }: Props) {
                 Close Summary
               </button>
               <button
-                onClick={() => {
-                  setIsSummaryModalOpen(false);
-                  navigate("/layout/query-list");
-                }}
-                className="px-5 py-2 text-xs font-bold rounded-xl text-white bg-gradient-to-r from-blue-500 to-[#7CA1F3] hover:from-blue-600 hover:to-blue-500 shadow-md hover:shadow-lg transition duration-200 active:scale-95 cursor-pointer flex items-center gap-1.5 hover:scale-[1.02]"
+                disabled={isIngesting}
+                onClick={handleWantToKnowMore}
+                className={`px-5 py-2 text-xs font-bold rounded-xl text-white shadow-md transition duration-200 active:scale-95 flex items-center gap-1.5 hover:scale-[1.02] ${isIngesting ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-blue-500 to-[#7CA1F3] hover:from-blue-600 hover:to-blue-500 hover:shadow-lg cursor-pointer"}`}
               >
-                Want to know more
+                {isIngesting ? "Processing..." : "Want to know more"}
                 <ArrowForwardIcon sx={{ fontSize: 14 }} />
               </button>
             </div>

@@ -183,6 +183,9 @@ updateSEO(body){
   summarizeSources(body) {
     return axios.post(POST_APIS.summarize_sources, body);
   }
+  ingestSelectedSources(body) {
+    return axios.post(POST_APIS.rag_ingest_selected, body);
+  }
 }
 
 export default new ApiServices();

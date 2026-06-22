@@ -50,4 +50,5 @@ export const POST_APIS = {
   save_rag_chat: `${BASE_URL}rag/chat/save`,
   get_rag_chat_history: `${BASE_URL}rag/chat/history`,
   summarize_sources: `${BASE_URL}summarize_sources`,
+  rag_ingest_selected: `${BASE_URL}rag/ingest/selected`,
 };
