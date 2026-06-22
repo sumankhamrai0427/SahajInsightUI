@@ -116,18 +116,18 @@ export default function Header() {
             </p>
           </div>
           <div className="flex items-center gap-3 text-sm" style={{ color: theme.secondaryText }}>
-            {workspaces.length > 0 && (
+            {/* {workspaces.length > 0 && (
               <select
                 value={selectedWorkspace}
                 onChange={handleWorkspaceChange}
                 className="px-3 py-1 mr-4 border border-gray-300 rounded-md bg-white text-gray-700 focus:outline-none text-sm font-medium"
               >
-                <option value="all">All Workspaces</option>
-                {workspaces.map(ws => (
+                {/* <option value="all">All Workspaces</option> */}
+                {/* {workspaces.map(ws => (
                   <option key={ws.id} value={ws.id}>{ws.workspace_name}</option>
                 ))}
               </select>
-            )}
+            )} */}
             <p>
               {formattedDate} | {formattedTime}
             </p>

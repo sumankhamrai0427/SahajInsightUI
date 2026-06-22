@@ -985,7 +985,8 @@ const QueryDesignerManage = () => {
       {/* ======================================================== */}
       <div className="flex-1 h-full flex flex-col min-h-0 overflow-y-auto">
 
-        {/* TOP ROW: Table Browser/Explorer card */}
+        {/* TOP ROW: Table Browser/Explorer card (Commented Out) */}
+        {/* 
         <div className="p-5 border-b border-gray-200 bg-white">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -1025,7 +1026,6 @@ const QueryDesignerManage = () => {
             </div>
           </div>
 
-          {/* Table detail display block */}
           {selectedExplorerTable && (
             <div className="mt-4 border border-gray-100 rounded-xl bg-gray-50/50 p-2">
               <TableParents
@@ -1040,6 +1040,7 @@ const QueryDesignerManage = () => {
             </div>
           )}
         </div>
+        */}
 
         {/* BOTTOM ROW: Chat UI */}
         <div className="flex-1 flex flex-col min-h-0 bg-[#F8FAFC]">
@@ -1049,6 +1050,7 @@ const QueryDesignerManage = () => {
             <div className="flex items-center gap-4">
               <span className="text-sm font-bold text-gray-800">Unified AI Chat</span>
             </div>
+            {/* 
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Workspace:</span>
                 <select
@@ -1061,6 +1063,7 @@ const QueryDesignerManage = () => {
                   ))}
                 </select>
               </div>
+            */}
           </div>
 
           {/* Chat Messages Log Scroll area */}
