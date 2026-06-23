@@ -85,6 +85,15 @@ const QueryDesignerManage = () => {
   const [workspaceFiles, setWorkspaceFiles] = useState<any[]>([]);
   const [isFetchingFiles, setIsFetchingFiles] = useState<boolean>(false);
 
+  // --- Workspace Suggestions ---
+  const [suggestionChips, setSuggestionChips] = useState<string[]>([
+    "What sudden changes in billing types ZBCL, ZBFO, ZFCL, or ZOR indicate potential disruptions in transaction processing?",
+    "What trends in customer category 'Dealer' suggest shifts in market demand or supply chain dynamics?",
+    "What variations in product categories (Tyre, Tube, Flap) reveal about inventory turnover or seasonal demand patterns?",
+    "What anomalies in the uniform distribution across zones, regions, or plants point to operational inefficiencies?",
+  ]);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState<boolean>(false);
+
   // --- Saved Queries & Backend Loading States ---
   const [queries, setQueries] = useState<any[]>([]);
   const [isLoadingQueries, setIsLoadingQueries] = useState<boolean>(true);
@@ -280,9 +289,30 @@ const QueryDesignerManage = () => {
     }
   };
 
+  const fetchWorkspaceSuggestions = async () => {
+    const wsId = getActiveWorkspaceId();
+    if (!user?.user_id) return;
+    setIsFetchingSuggestions(true);
+    try {
+      const response = await ApiServices.suggestWorkspaceQuestions({
+        created_by: user?.user_id,
+        session_id: user?.session_id,
+        workspace_id: wsId
+      });
+      if (response.data?.status === "success" || response.data?.isSuccess) {
+        setSuggestionChips(response.data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch workspace suggestions", err);
+    } finally {
+      setIsFetchingSuggestions(false);
+    }
+  };
+
   useEffect(() => {
     if (activeWorkspace && realWorkspaces.length > 0) {
       fetchWorkspaceFiles();
+      fetchWorkspaceSuggestions();
     }
   }, [activeWorkspace, realWorkspaces]);
 
@@ -810,13 +840,7 @@ const QueryDesignerManage = () => {
     return () => clearInterval(typingInterval);
   }, [typewriterKey]);
 
-  // Suggestion Chips list
-  const suggestionChips = [
-    "What sudden changes in billing types ZBCL, ZBFO, ZFCL, or ZOR indicate potential disruptions in transaction processing?",
-    "What trends in customer category 'Dealer' suggest shifts in market demand or supply chain dynamics?",
-    "What variations in product categories (Tyre, Tube, Flap) reveal about inventory turnover or seasonal demand patterns?",
-    "What anomalies in the uniform distribution across zones, regions, or plants point to operational inefficiencies?",
-  ];
+
 
   const filteredWorkspacesList = workspaces.filter((ws) =>
     ws.toLowerCase().includes(workspaceSearch.toLowerCase())
@@ -1105,17 +1129,24 @@ const QueryDesignerManage = () => {
                     Speak to your data. What would you like to analyze today?
                   </h2>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-left">
-                    {suggestionChips.map((chip, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => setChatInputValue(chip)}
-                        className="p-4 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#5433FF] hover:bg-blue-50/20 transition text-xs text-gray-600 leading-relaxed leading-normal"
-                      >
-                        {chip}
-                      </div>
-                    ))}
-                  </div>
+                  {isFetchingSuggestions ? (
+                    <div className="flex justify-center items-center py-10 text-gray-400 gap-2">
+                      <AutorenewRoundedIcon className="animate-spin text-sm" />
+                      <span className="text-xs">Generating workspace suggestions...</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-left">
+                      {suggestionChips.map((chip, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setChatInputValue(chip)}
+                          className="p-4 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#5433FF] hover:bg-blue-50/20 transition text-xs text-gray-600 leading-relaxed leading-normal"
+                        >
+                          {chip}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="max-w-4xl mx-auto space-y-4">
@@ -1171,6 +1202,19 @@ const QueryDesignerManage = () => {
                       )}
                     </div>
                   ))}
+
+                  {isSendingMessage && (
+                    <div className="flex justify-start">
+                      <div className="bg-white border border-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tl-none text-xs max-w-[80%] shadow-sm leading-relaxed flex flex-col gap-1.5">
+                        <span className="font-semibold block text-[10px] text-[#5433FF]">SahajInsight AI Assistant</span>
+                        <div className="flex items-center gap-1.5 py-1 px-2 bg-gray-50 border border-gray-100 rounded-lg">
+                          <div className="w-1.5 h-1.5 bg-[#5433FF] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-1.5 h-1.5 bg-[#5433FF] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-1.5 h-1.5 bg-[#5433FF] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
           </div>

@@ -53,4 +53,5 @@ export const POST_APIS = {
   get_rag_chat_history: `${BASE_URL}rag/chat/history`,
   summarize_sources: `${BASE_URL}summarize_sources`,
   rag_ingest_selected: `${BASE_URL}rag/ingest/selected`,
+  suggest_workspace_questions: `${BASE_URL}workspace/suggest_questions`,
 };

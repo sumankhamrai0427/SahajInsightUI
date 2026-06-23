@@ -193,6 +193,9 @@ updateSEO(body){
   ingestSelectedSources(body) {
     return axios.post(POST_APIS.rag_ingest_selected, body);
   }
+  suggestWorkspaceQuestions(body) {
+    return axios.post(POST_APIS.suggest_workspace_questions, body);
+  }
 }
 
 export default new ApiServices();
