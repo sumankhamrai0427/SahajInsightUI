@@ -222,11 +222,12 @@ function KPICard({ icon, label, value, color }) {
     cyan: "text-cyan-600 border-cyan-100 bg-cyan-50/20",
     indigo: "text-indigo-600 border-indigo-100 bg-indigo-50/20"
   };
+  const displayValue = (value === null || value === undefined || value === "" || value === "N/A") ? "0" : value;
   return (
     <div className={`p-4 rounded-2xl border transition-all hover:shadow-md ${colors[color]} bg-white`}>
       <div className="mb-2 p-1.5 bg-white rounded-lg w-fit shadow-sm border border-inherit">{icon}</div>
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="text-lg font-black mt-1 text-slate-800">{value ?? "0"}</p>
+      <p className="text-lg font-black mt-1 text-slate-800">{displayValue}</p>
     </div>
   );
 }
@@ -249,10 +250,11 @@ function StatusStep({ label, status }) {
 }
 
 function ProgressStat({ label, value }) {
+  const displayValue = (value === null || value === undefined || value === "" || value === "N/A") ? "0" : value;
   return (
     <div className="flex-1 min-w-[90px] text-left md:text-center px-2 md:border-r last:border-0 border-slate-100">
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{label}</p>
-      <p className="text-sm md:text-base font-black text-slate-800">{value ?? "N/A"}</p>
+      <p className="text-sm md:text-base font-black text-slate-800">{displayValue}</p>
     </div>
   );
 }

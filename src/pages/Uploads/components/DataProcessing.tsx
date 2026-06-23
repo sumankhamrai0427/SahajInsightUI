@@ -293,6 +293,7 @@ export default function DataProcessing({ files, onRefresh }: Props) {
         localStorage.setItem("rag_flow_type", "selected");
         localStorage.setItem("selected_csvs", JSON.stringify(selectedCsvs));
         localStorage.setItem("selected_webs", JSON.stringify(selectedWebs));
+        console.log("Setting localStorage with selected_csvs:", selectedCsvs, "selected_webs:", selectedWebs);
         setIsSummaryModalOpen(false);
         navigate("/layout/query-list");
       } else {
@@ -567,15 +568,15 @@ export default function DataProcessing({ files, onRefresh }: Props) {
           <>
             {/* Scrollable container for the whole table */}
             <div className="overflow-x-auto w-full pr-2">
-              <div className="min-w-[1500px]">
+              <div style={{ minWidth: "1800px" }}>
                 
                 {/* Global Column Headers */}
                 <div className="mb-3">
-                  <div className="flex items-center gap-4 px-4 py-2 rounded-xl" style={{ backgroundColor: theme.border + '20' }}>
-                    <div className="flex-[1.5] min-w-[150px] text-xs font-semibold" style={{ color: theme.secondaryText }}>
+                  <div className="flex items-stretch rounded-xl overflow-hidden" style={{ backgroundColor: theme.border + '20', minWidth: "1800px" }}>
+                    <div className="p-4 flex items-center text-xs font-semibold" style={{ color: theme.secondaryText, width: "180px", flexShrink: 0 }}>
                       Workspace Name
                     </div>
-                    <div className="flex-[13.7] flex items-center gap-4">
+                    <div className="flex-1 flex items-center gap-4 p-4">
                       <div className="w-12 flex-shrink-0 flex items-center justify-center">
                         <input
                           type="checkbox"
@@ -631,18 +632,18 @@ export default function DataProcessing({ files, onRefresh }: Props) {
                       <div
                         key={index}
                         className="flex items-stretch rounded-xl overflow-hidden bg-gray-200"
-                        style={{ border: `1px solid ${theme.border}` }}
+                        style={{ border: `1px solid ${theme.border}`, minWidth: "1800px" }}
                       >
                         {/* Left column: Workspace Name */}
                         <div
-                          className="flex-[1.5] min-w-[150px] p-4 flex items-center bg-gray-300 font-semibold text-sm break-words whitespace-normal"
-                          style={{ color: theme.primaryText }}
+                          className="p-4 flex items-center bg-gray-300 font-semibold text-sm break-words whitespace-normal"
+                          style={{ color: theme.primaryText, width: "180px", flexShrink: 0 }}
                         >
                           {group.workspaceName}
                         </div>
 
                         {/* Right column: Files list stack */}
-                        <div className="flex-[13.7] flex flex-col divide-y divide-gray-300 bg-gray-200">
+                        <div className="flex-1 flex flex-col divide-y divide-gray-300 bg-gray-200">
                           {group.files.map((file, fileIdx) => {
                             const fileName = file.name || file.file_name;
                             const currentProgress = processingProgress[fileName] || 0;

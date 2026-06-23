@@ -282,9 +282,11 @@ const QueryDesignerManage = () => {
       if (response.data?.status === "success" || response.data?.isSuccess) {
         const allFiles = response.data.data || [];
         const flowType = localStorage.getItem("rag_flow_type") || "all";
+        console.log("RAG Flow Type:", flowType);
         if (flowType === "selected") {
           const selectedCsvs = JSON.parse(localStorage.getItem("selected_csvs") || "[]");
           const selectedWebs = JSON.parse(localStorage.getItem("selected_webs") || "[]");
+          console.log("Filtering files with selectedCsvs:", selectedCsvs, "and selectedWebs:", selectedWebs);
           const filtered = allFiles.filter(file => {
             if (file.file_type === "web_search") {
               return selectedWebs.includes(file.file_name);
@@ -702,6 +704,8 @@ const QueryDesignerManage = () => {
     try {
       const payload = {
         session_id: user?.session_id,
+        created_by: user?.user_id,
+        workspace_id: getActiveWorkspaceId(),
         sql_query: executableQuery,
       };
 

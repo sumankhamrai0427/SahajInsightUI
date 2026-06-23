@@ -238,9 +238,12 @@ const ReportDesignManage = () => {
       const aiResponse = report?.query?.ai_responce;
       if (!aiResponse) return;
 
+      const wsId = localStorage.getItem("selected_workspace") || localStorage.getItem("active_workspace_id") || userData?.workspace_id;
       const execRes = await ApiServices.executeSql({
         sql_query: aiResponse,
         session_id: userData?.session_id,
+        created_by: userData?.user_id,
+        workspace_id: wsId,
       });
 
       const api = execRes.data.data;
@@ -292,9 +295,12 @@ const ReportDesignManage = () => {
     try {
       const aiResponse = report?.query?.ai_responce;
       if (!aiResponse) return;
+      const wsId = localStorage.getItem("selected_workspace") || localStorage.getItem("active_workspace_id") || userData?.workspace_id;
       const execRes = await ApiServices.executeSql({
         sql_query: aiResponse,
         session_id: userData?.session_id,
+        created_by: userData?.user_id,
+        workspace_id: wsId,
       });
       const api = execRes.data.data;
       const config =

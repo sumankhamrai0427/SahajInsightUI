@@ -146,8 +146,11 @@ export default function TableView() {
   const handleRunScript = async (sqlQuery: string) => {
     setIsRefreshing(true);
     try {
+      const wsId = localStorage.getItem("selected_workspace") || localStorage.getItem("active_workspace_id") || userData?.workspace_id;
       const payload = {
         session_id: userData?.session_id,
+        created_by: userData?.user_id,
+        workspace_id: wsId,
         sql_query: sqlQuery,
       };
       const response = await ApiServices.executeSql(payload);
