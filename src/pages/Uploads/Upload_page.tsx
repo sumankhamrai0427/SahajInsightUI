@@ -362,7 +362,7 @@ export default function UploadPage() {
             disabled={isUploading || isProcessing || selectedWorkspace === "all"}
           />
           {selectedWorkspace === "all" && (
-            <p className="text-xs text-red-500 mt-2 text-center font-semibold">
+            <p className="text-xs text-gray-400 mt-2 text-center font-semibold">
               Please select a specific workspace to upload files.
             </p>
           )}
@@ -404,7 +404,7 @@ export default function UploadPage() {
             </div>
           </div>
           {selectedWorkspace === "all" && (
-            <p className="text-xs text-red-500 text-center font-semibold mt-1">
+            <p className="text-xs text-gray-400 text-center font-semibold mt-1">
               Please select a specific workspace to search.
             </p>
           )}
