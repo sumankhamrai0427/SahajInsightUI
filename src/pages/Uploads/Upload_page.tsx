@@ -394,7 +394,7 @@ export default function UploadPage() {
                 value={searchResults}
                 readOnly
                 placeholder="Search result summary will appear here..."
-                className="w-full h-24 p-3 border rounded-xl text-xs resize-none focus:outline-none"
+                className="w-full h-48 min-h-[6rem] p-3 border rounded-xl text-xs resize-y overflow-y-auto focus:outline-none custom-scrollbar"
                 style={{
                   borderColor: theme.border,
                   backgroundColor: theme.surface,
