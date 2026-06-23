@@ -290,6 +290,9 @@ export default function DataProcessing({ files, onRefresh }: Props) {
       };
       const response = await ApiServices.ingestSelectedSources(payload);
       if (response.data?.isSuccess) {
+        localStorage.setItem("rag_flow_type", "selected");
+        localStorage.setItem("selected_csvs", JSON.stringify(selectedCsvs));
+        localStorage.setItem("selected_webs", JSON.stringify(selectedWebs));
         setIsSummaryModalOpen(false);
         navigate("/layout/query-list");
       } else {

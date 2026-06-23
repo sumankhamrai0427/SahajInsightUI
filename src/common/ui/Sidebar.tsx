@@ -51,6 +51,11 @@ export default function Sidebar() {
   const { user, setIsLogoutModalOpen } = useAuth();
 
   const handleTabClick = async (item) => {
+    if (item.path === "query-list") {
+      localStorage.setItem("rag_flow_type", "all");
+      localStorage.removeItem("selected_csvs");
+      localStorage.removeItem("selected_webs");
+    }
 
     if (item.path === "table-insights") {
       const userData = JSON.parse(localStorage.getItem("ig_user") || "{}");

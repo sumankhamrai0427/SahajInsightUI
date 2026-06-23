@@ -280,7 +280,22 @@ const QueryDesignerManage = () => {
         workspace_id: wsId
       });
       if (response.data?.status === "success" || response.data?.isSuccess) {
-        setWorkspaceFiles(response.data.data || []);
+        const allFiles = response.data.data || [];
+        const flowType = localStorage.getItem("rag_flow_type") || "all";
+        if (flowType === "selected") {
+          const selectedCsvs = JSON.parse(localStorage.getItem("selected_csvs") || "[]");
+          const selectedWebs = JSON.parse(localStorage.getItem("selected_webs") || "[]");
+          const filtered = allFiles.filter(file => {
+            if (file.file_type === "web_search") {
+              return selectedWebs.includes(file.file_name);
+            } else {
+              return selectedCsvs.includes(file.file_name);
+            }
+          });
+          setWorkspaceFiles(filtered);
+        } else {
+          setWorkspaceFiles(allFiles);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch workspace files", err);
@@ -553,6 +568,7 @@ const QueryDesignerManage = () => {
         user_query: queryText,
         workspace_id: wsId,
         created_by: user?.user_id, // ensure created_by is passed if needed
+        scope: localStorage.getItem("rag_flow_type") || "all"
       };
 
       const response = await ApiServices.unifiedChat(payload);
