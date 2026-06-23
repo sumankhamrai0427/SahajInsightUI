@@ -539,25 +539,64 @@ const QueryDesignerManage = () => {
       if (chatTypeFromResponse === "sql" || response.data?.chat_type === "sql") {
         chatType = "sql";
         aiRespText = result.ai_response || "";
+        const scriptText = result.sql_script || result.ai_response || "";
         logs = result.logs || [];
+        
+        setTypedQuery(scriptText);
+        setTypewriterKey((prev) => prev + 1);
+        setScriptLogs(logs);
+
+        // Auto-populate results if backend already executed it
+        if (result.results) {
+            const rows = result.results.rows || [];
+            const columns = result.results.columns ? result.results.columns.map((c: any) => ({ column_name: c })) : [];
+            const rowCount = result.results.total_rows ?? rows.length;
+            const executionTime = result.results.execution_time ?? null;
+
+            setScriptResultTable({ rows, columns });
+            setDownloadData({ rows, columns });
+            setExecutionMeta({
+                rows_effected: rowCount,
+                query_time: executionTime,
+            });
+            setIsScriptSuccess(true);
+            
+            // Wait for typewriter effect then update message
+            setTimeout(() => {
+                setChatMessages((prev) =>
+                    prev.map((msg) =>
+                        msg.query_id === tempQueryId ? { 
+                            ...msg, 
+                            ai_response: aiRespText, 
+                            chat_type: chatType,
+                            is_execute: true,
+                            is_success: true,
+                            row_count: rowCount,
+                            query_time: Number(executionTime || 0)
+                        } : msg
+                    )
+                );
+            }, 100);
+        } else {
+            // Update the message in chat state without execution data
+            setChatMessages((prev) =>
+                prev.map((msg) =>
+                    msg.query_id === tempQueryId ? { ...msg, ai_response: aiRespText, chat_type: chatType } : msg
+                )
+            );
+        }
       } else {
         chatType = "rag";
         // RAG uses ai_answer instead of ai_response sometimes, but let's be flexible
         aiRespText = result.ai_answer || result.ai_response || response.data?.ai_response || "No response.";
-      }
+        
+        // Update the message in chat state
+        setChatMessages((prev) =>
+            prev.map((msg) =>
+                msg.query_id === tempQueryId ? { ...msg, ai_response: aiRespText, chat_type: chatType } : msg
+            )
+        );
 
-      // Update the message in chat state
-      setChatMessages((prev) =>
-        prev.map((msg) =>
-          msg.query_id === tempQueryId ? { ...msg, ai_response: aiRespText, chat_type: chatType } : msg
-        )
-      );
-
-      if (chatType === "sql") {
-        setTypedQuery(aiRespText);
-        setTypewriterKey((prev) => prev + 1);
-        setScriptLogs(logs);
-      } else {
         // Save RAG chat history immediately in background
         ApiServices.saveRagChat({
           company_code: user?.company_code,
