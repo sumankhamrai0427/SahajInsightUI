@@ -53,17 +53,20 @@ const formatTimestamp = (dateString?: string) => {
 const formatMessageText = (text: string) => {
   if (!text) return null;
 
+  // Normalize Windows line breaks (\r\n) to standard line break (\n)
+  const normalizedText = text.replace(/\r\n/g, "\n");
+
   // 1. Separate Source Header from Main Content if present
   let sourceBlock = "";
-  let mainContent = text;
+  let mainContent = normalizedText;
 
   const separator = "\n\n---\n\n";
-  if (text.includes(separator)) {
-    const parts = text.split(separator);
+  if (normalizedText.includes(separator)) {
+    const parts = normalizedText.split(separator);
     sourceBlock = parts[0];
     mainContent = parts.slice(1).join(separator);
-  } else if (text.startsWith("Source:") || text.startsWith("Sources:")) {
-    const lines = text.split("\n");
+  } else if (normalizedText.startsWith("Source:") || normalizedText.startsWith("Sources:")) {
+    const lines = normalizedText.split("\n");
     const firstBlank = lines.findIndex(l => l.trim() === "");
     if (firstBlank !== -1) {
       sourceBlock = lines.slice(0, firstBlank).join("\n");
