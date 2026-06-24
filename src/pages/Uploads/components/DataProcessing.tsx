@@ -6,6 +6,7 @@ import AutorenewRoundedIcon from "@mui/icons-material/AutorenewRounded";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import Tippy from "@tippyjs/react";
 import "tippy.js/dist/tippy.css";
+import "../../../styles/tippy-theme.css";
 import { useTheme } from "../../../theme";
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -78,10 +79,33 @@ export default function DataProcessing({ files, onRefresh }: Props) {
   const csvEndIndex = Math.min(csvStartIndex + ITEMS_PER_PAGE, groupedCsvs.length);
   const paginatedGroupedCsvFiles = groupedCsvs.slice(csvStartIndex, csvEndIndex);
 
-  const webTotalPages = Math.ceil(webSearchFiles.length / ITEMS_PER_PAGE) || 1;
+  // Group Web Search files by workspace
+  interface GroupedWebWorkspace {
+    workspaceName: string;
+    files: any[];
+  }
+
+  const getGroupedWebs = (): GroupedWebWorkspace[] => {
+    const groups: Record<string, any[]> = {};
+    webSearchFiles.forEach(file => {
+      const wsName = file.workspace_name || "Unassigned Workspace";
+      if (!groups[wsName]) {
+        groups[wsName] = [];
+      }
+      groups[wsName].push(file);
+    });
+
+    return Object.entries(groups).map(([workspaceName, files]) => ({
+      workspaceName,
+      files
+    }));
+  };
+
+  const groupedWebs = getGroupedWebs();
+  const webTotalPages = Math.ceil(groupedWebs.length / ITEMS_PER_PAGE) || 1;
   const webStartIndex = (webPage - 1) * ITEMS_PER_PAGE;
-  const webEndIndex = Math.min(webStartIndex + ITEMS_PER_PAGE, webSearchFiles.length);
-  const paginatedWebFiles = webSearchFiles.slice(webStartIndex, webEndIndex);
+  const webEndIndex = Math.min(webStartIndex + ITEMS_PER_PAGE, groupedWebs.length);
+  const paginatedGroupedWebFiles = groupedWebs.slice(webStartIndex, webEndIndex);
 
   const [fileDependencies, setFileDependencies] = useState<string | null>(null);
 
@@ -158,9 +182,9 @@ export default function DataProcessing({ files, onRefresh }: Props) {
       if (!userIdentifier) return;
       try {
         const payload = {
-            user_email: userIdentifier,
-            session_id: user?.session_id,
-            created_by: user?.user_id || ""
+          user_email: userIdentifier,
+          session_id: user?.session_id,
+          created_by: user?.user_id || ""
         };
         const res = await ApiServices.getUserWorkspaces(payload);
         if (res.data?.isSuccess) {
@@ -569,7 +593,7 @@ export default function DataProcessing({ files, onRefresh }: Props) {
             {/* Scrollable container for the whole table */}
             <div className="overflow-x-auto w-full pr-2">
               <div style={{ minWidth: "1800px" }}>
-                
+
                 {/* Global Column Headers */}
                 <div className="mb-3">
                   <div className="flex items-stretch rounded-xl overflow-hidden" style={{ backgroundColor: theme.border + '20', minWidth: "1800px" }}>
@@ -894,14 +918,14 @@ export default function DataProcessing({ files, onRefresh }: Props) {
             onClick={handleRefresh}
             disabled={isRefreshing}
             className={`p-2 rounded-lg transition-all duration-300 flex items-center justify-center
-              ${isRefreshing 
-                ? 'bg-blue-100 text-[#7CA1F3] cursor-not-allowed' 
+              ${isRefreshing
+                ? 'bg-blue-100 text-[#7CA1F3] cursor-not-allowed'
                 : 'hover:bg-blue-50 text-gray-500 hover:text-[#7CA1F3] cursor-pointer'
               }`}
             title="Refresh History"
           >
-            <AutorenewRoundedIcon 
-              sx={{ fontSize: 18 }} 
+            <AutorenewRoundedIcon
+              sx={{ fontSize: 18 }}
               className={`transition-all duration-500 ${isRefreshing ? 'animate-spin' : 'hover:rotate-180'}`}
             />
           </button>
@@ -920,139 +944,159 @@ export default function DataProcessing({ files, onRefresh }: Props) {
           </div>
         ) : (
           <>
-            {/* Headers */}
-            <div className="mb-3 overflow-x-auto">
-              <div className="flex items-center justify-between gap-4 px-4 py-2 rounded-xl" style={{ backgroundColor: theme.border + '20' }}>
-                <div className="w-12 flex items-center justify-center">
-                  <input
-                    type="checkbox"
-                    checked={webSearchFiles.length > 0 && selectedWebs.length === webSearchFiles.length}
-                    onChange={(e) => handleSelectAllWeb(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#7CA1F3] focus:ring-[#7CA1F3] border-gray-300 cursor-pointer"
-                  />
-                </div>
-                <div className="flex-[2] min-w-0">
-                  <div className="text-xs font-semibold" style={{ color: theme.secondaryText }}>
-                    Query / Source Name
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Knowledge Chunks / Rows Affected
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Ingestion Date
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Ingestion Time
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
-                    Action
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* List */}
-            <div className="overflow-x-auto pr-2">
-              {paginatedWebFiles.map((file, index) => {
-                const fileName = file.name || file.file_name;
-
-                return (
-                  <div
-                    key={index}
-                    className="rounded-xl p-4 w-full mb-3 bg-gray-200 hover:bg-gray-300 transition-colors duration-200"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      {/* Checkbox */}
-                      <div className="w-12 flex items-center justify-center">
+            {/* Scrollable container for the whole table */}
+            <div className="overflow-x-auto w-full pr-2">
+              <div style={{ minWidth: "1000px" }}>
+                {/* Headers */}
+                <div className="mb-3">
+                  <div className="flex items-stretch rounded-xl overflow-hidden" style={{ backgroundColor: theme.border + '20', minWidth: "1000px" }}>
+                    <div className="p-4 flex items-center text-xs font-semibold" style={{ color: theme.secondaryText, width: "180px", flexShrink: 0 }}>
+                      Workspace Name
+                    </div>
+                    <div className="flex-1 flex items-center gap-4 p-4">
+                      <div className="w-12 flex-shrink-0 flex items-center justify-center">
                         <input
                           type="checkbox"
-                          checked={selectedWebs.includes(fileName)}
-                          onChange={() => handleToggleWeb(fileName)}
+                          checked={webSearchFiles.length > 0 && selectedWebs.length === webSearchFiles.length}
+                          onChange={(e) => handleSelectAllWeb(e.target.checked)}
                           className="w-4 h-4 rounded text-[#7CA1F3] focus:ring-[#7CA1F3] border-gray-300 cursor-pointer"
                         />
                       </div>
-
-                      {/* Query Name */}
-                      <div className="flex-[2] min-w-0">
-                        <div className="relative group">
-                          <div
-                            className="text-sm font-medium truncate"
-                            style={{ color: theme.primaryText }}
-                          >
-                            {fileName}
-                          </div>
-                          <div className="absolute left-0 mt-1 hidden group-hover:block whitespace-nowrap bg-[#888585] text-white text-xs px-2 py-1 rounded shadow-lg z-10">
-                            {fileName}
-                          </div>
-                        </div>
+                      <div className="flex-[2] min-w-[200px] text-xs font-semibold" style={{ color: theme.secondaryText }}>
+                        Query / Source Name
                       </div>
-
-                      {/* Chunks Affected */}
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-sm font-medium text-center"
-                          style={{ color: theme.primaryText }}
-                        >
-                          {file.rows_effected || 0}
-                        </div>
+                      <div className="flex-1 min-w-[120px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Knowledge Chunks / Rows Affected
                       </div>
-
-                      {/* Ingestion Date */}
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-sm font-medium text-center"
-                          style={{ color: theme.primaryText }}
-                        >
-                          {file.created_date || "N/A"}
-                        </div>
+                      <div className="flex-1 min-w-[120px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Ingestion Date
                       </div>
-
-                      {/* Ingestion Time */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
-                          {formatTo12Hour(file.created_at) || new Date().toLocaleDateString()}
-                        </div>
+                      <div className="flex-1 min-w-[120px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Ingestion Time
                       </div>
-
-                      {/* Delete Action */}
-                      <div className="flex-1 min-w-0 flex justify-center">
-                        <Tippy content="Delete search history" theme="gray">
-                          <DeleteIcon
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteFile(file);
-                              setFileDependencies(null);
-                              setIsConfirmSaveModalOpen(true);
-                            }}
-                            sx={{
-                              fontSize: 20,
-                              color: "#9ca3af",
-                              cursor: "pointer",
-                              "&:hover": {
-                                color: "#ef4444",
-                              },
-                            }}
-                          />
-                        </Tippy>
+                      <div className="flex-1 min-w-[100px] text-xs font-semibold text-center" style={{ color: theme.secondaryText }}>
+                        Action
                       </div>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+
+                {/* Workspace Grouped Cards */}
+                <div className="space-y-3">
+                  {paginatedGroupedWebFiles.map((group, index) => {
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-stretch rounded-xl overflow-hidden bg-gray-200"
+                        style={{ border: `1px solid ${theme.border}`, minWidth: "1000px" }}
+                      >
+                        {/* Left column: Workspace Name */}
+                        <div
+                          className="p-4 flex items-center bg-gray-300 font-semibold text-sm break-words whitespace-normal"
+                          style={{ color: theme.primaryText, width: "180px", flexShrink: 0 }}
+                        >
+                          {group.workspaceName}
+                        </div>
+
+                        {/* Right column: Files list stack */}
+                        <div className="flex-1 flex flex-col divide-y divide-gray-300 bg-gray-200">
+                          {group.files.map((file, fileIdx) => {
+                            const fileName = file.name || file.file_name;
+
+                            return (
+                              <div
+                                key={fileIdx}
+                                className="flex items-center gap-4 p-4 hover:bg-gray-300 transition-colors duration-200"
+                              >
+                                {/* Checkbox */}
+                                <div className="w-12 flex-shrink-0 flex items-center justify-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedWebs.includes(fileName)}
+                                    onChange={() => handleToggleWeb(fileName)}
+                                    className="w-4 h-4 rounded text-[#7CA1F3] focus:ring-[#7CA1F3] border-gray-300 cursor-pointer"
+                                  />
+                                </div>
+
+                                {/* Query Name */}
+                                <div className="flex-[2] min-w-[200px]">
+                                  <Tippy
+                                    content={<div className="whitespace-normal break-words max-w-sm">{fileName}</div>}
+                                    theme="gray"
+                                    placement="top-start"
+                                  >
+                                    <div
+                                      className="text-sm font-medium truncate cursor-help"
+                                      style={{ color: theme.primaryText }}
+                                    >
+                                      {fileName}
+                                    </div>
+                                  </Tippy>
+                                </div>
+
+                                {/* Chunks Affected */}
+                                <div className="flex-1 min-w-[120px]">
+                                  <div
+                                    className="text-sm font-medium text-center"
+                                    style={{ color: theme.primaryText }}
+                                  >
+                                    {file.rows_effected || 0}
+                                  </div>
+                                </div>
+
+                                {/* Ingestion Date */}
+                                <div className="flex-1 min-w-[120px]">
+                                  <div
+                                    className="text-sm font-medium text-center"
+                                    style={{ color: theme.primaryText }}
+                                  >
+                                    {file.created_date || "N/A"}
+                                  </div>
+                                </div>
+
+                                {/* Ingestion Time */}
+                                <div className="flex-1 min-w-[120px]">
+                                  <div className="text-sm font-medium text-center" style={{ color: theme.primaryText }}>
+                                    {formatTo12Hour(file.created_at) || new Date().toLocaleDateString()}
+                                  </div>
+                                </div>
+
+                                {/* Delete Action */}
+                                <div className="flex-1 min-w-[100px] flex justify-center">
+                                  <Tippy content="Delete search history" theme="gray">
+                                    <DeleteIcon
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteFile(file);
+                                        setFileDependencies(null);
+                                        setIsConfirmSaveModalOpen(true);
+                                      }}
+                                      sx={{
+                                        fontSize: 20,
+                                        color: "#9ca3af",
+                                        cursor: "pointer",
+                                        "&:hover": {
+                                          color: "#ef4444",
+                                        },
+                                      }}
+                                    />
+                                  </Tippy>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Pagination */}
             <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 rounded-b-xl mt-4">
               <div className="text-sm text-gray-600">
-                Showing {Math.min(webStartIndex + 1, webSearchFiles.length)} to {Math.min(webEndIndex, webSearchFiles.length)} of {webSearchFiles.length} records
+                Showing {Math.min(webStartIndex + 1, groupedWebs.length)} to {Math.min(webEndIndex, groupedWebs.length)} of {groupedWebs.length} workspaces
               </div>
 
               <div className="flex items-center gap-1">
@@ -1084,7 +1128,7 @@ export default function DataProcessing({ files, onRefresh }: Props) {
 
                 {/* Next Button */}
                 <button
-                  onClick={() => setWebPage(p => p - 1)}
+                  onClick={() => setWebPage(p => p + 1)}
                   disabled={webPage === webTotalPages}
                   className={`px-3 py-1.5 text-sm font-medium rounded-xl transition-all ${webPage === webTotalPages
                     ? 'text-gray-400 cursor-not-allowed'
@@ -1105,8 +1149,8 @@ export default function DataProcessing({ files, onRefresh }: Props) {
           disabled={selectedCsvs.length === 0 && selectedWebs.length === 0}
           onClick={handleImportSummary}
           className={`px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg transition-all flex items-center gap-2 ${(selectedCsvs.length === 0 && selectedWebs.length === 0)
-              ? "bg-gray-400 cursor-not-allowed opacity-50"
-              : "bg-gradient-to-r from-blue-500 to-[#7CA1F3] hover:from-blue-600 hover:to-blue-500 cursor-pointer hover:shadow-xl active:scale-95"
+            ? "bg-gray-400 cursor-not-allowed opacity-50"
+            : "bg-gradient-to-r from-blue-500 to-[#7CA1F3] hover:from-blue-600 hover:to-blue-500 cursor-pointer hover:shadow-xl active:scale-95"
             }`}
         >
           Import ({selectedCsvs.length + selectedWebs.length} Selected)
@@ -1211,7 +1255,7 @@ export default function DataProcessing({ files, onRefresh }: Props) {
       {isDetailsModalOpen && selectedRowDetails && !isConfirmSaveModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="w-[1000px] max-w-[95vw] h-[85vh] max-h-[85vh] rounded-2xl shadow-2xl bg-white flex flex-col border overflow-hidden" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
-            
+
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: theme.border }}>
               <div>
