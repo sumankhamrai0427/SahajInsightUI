@@ -50,6 +50,112 @@ const formatTimestamp = (dateString?: string) => {
   }
 };
 
+const formatMessageText = (text: string) => {
+  if (!text) return null;
+
+  // 1. Separate Source Header from Main Content if present
+  let sourceBlock = "";
+  let mainContent = text;
+
+  const separator = "\n\n---\n\n";
+  if (text.includes(separator)) {
+    const parts = text.split(separator);
+    sourceBlock = parts[0];
+    mainContent = parts.slice(1).join(separator);
+  } else if (text.startsWith("Source:") || text.startsWith("Sources:")) {
+    const lines = text.split("\n");
+    const firstBlank = lines.findIndex(l => l.trim() === "");
+    if (firstBlank !== -1) {
+      sourceBlock = lines.slice(0, firstBlank).join("\n");
+      mainContent = lines.slice(firstBlank + 1).join("\n");
+    }
+  }
+
+  // Helper to render inline formatting like **bold**
+  const parseInline = (line: string) => {
+    const parts = line.split(/\*\*([\s\S]*?)\*\*/g);
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        return <strong key={index} className="font-bold text-gray-900">{part}</strong>;
+      }
+      return part;
+    });
+  };
+
+  // Helper to render block elements
+  const renderLine = (line: string, index: number) => {
+    const trimmed = line.trim();
+    if (!trimmed) return <div key={index} className="h-1.5"></div>;
+
+    // Headers
+    if (trimmed.startsWith("### ")) {
+      return (
+        <h3 key={index} className="text-xs font-bold text-gray-800 mt-3 mb-1">
+          {parseInline(trimmed.substring(4))}
+        </h3>
+      );
+    }
+    if (trimmed.startsWith("#### ")) {
+      return (
+        <h4 key={index} className="text-[11px] font-bold text-gray-800 mt-2 mb-1">
+          {parseInline(trimmed.substring(5))}
+        </h4>
+      );
+    }
+
+    // List items
+    if (trimmed.startsWith("- ")) {
+      return (
+        <li key={index} className="ml-4 list-disc text-gray-700 my-0.5">
+          {parseInline(trimmed.substring(2))}
+        </li>
+      );
+    }
+    if (trimmed.startsWith("* ")) {
+      return (
+        <li key={index} className="ml-4 list-disc text-gray-700 my-0.5">
+          {parseInline(trimmed.substring(2))}
+        </li>
+      );
+    }
+
+    // Normal paragraphs
+    return (
+      <p key={index} className="text-gray-700 my-0.5 leading-relaxed">
+        {parseInline(line)}
+      </p>
+    );
+  };
+
+  const hasLink = (str: string) => {
+    return str.includes("http://") || str.includes("https://");
+  };
+
+  return (
+    <div className="space-y-1">
+      {/* Source Header */}
+      {sourceBlock && (
+        <div 
+          className={`font-semibold text-[10px] mb-2 p-1.5 rounded-lg border ${
+            hasLink(sourceBlock) 
+              ? "bg-green-50 border-green-100 text-green-700" 
+              : "bg-red-50 border-red-100 text-red-500"
+          }`}
+        >
+          {sourceBlock.split("\n").map((line, idx) => (
+            <div key={idx}>{parseInline(line)}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="space-y-0.5">
+        {mainContent.split("\n").map((line, idx) => renderLine(line, idx))}
+      </div>
+    </div>
+  );
+};
+
 interface ChatSession {
   id?: number;
   session_id: string;
@@ -1210,8 +1316,8 @@ const QueryDesignerManage = () => {
                                 </div>
                               </>
                             ) : (
-                              <div className="text-gray-700 whitespace-pre-wrap">
-                                {msg.ai_response}
+                              <div className="text-gray-700">
+                                {formatMessageText(msg.ai_response)}
                               </div>
                             )}
                             <div className="text-[9px] text-gray-400 mt-2 text-right font-light select-none">
