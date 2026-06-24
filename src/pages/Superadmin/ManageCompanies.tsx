@@ -10,6 +10,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import ConfirmSaveView from "../../Modal/ConfirmSaveView";
 import { useAuth } from "../Auth/AuthContext";
+import "../../styles/primereact-table.css";
 function ManageCompanies() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -264,7 +265,9 @@ function ManageCompanies() {
         <DataTable
           value={companies}
           paginator
+          paginatorClassName="custom-paginator"
           rows={5}
+          rowsPerPageOptions={[5, 10, 25, 50]}
           filters={filters}
           globalFilterFields={columnConfig.map(c => c.field)}
           stripedRows

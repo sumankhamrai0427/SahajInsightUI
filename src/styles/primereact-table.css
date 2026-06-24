@@ -60,6 +60,10 @@
   display: none !important;
 }
 
+.p-datatable .p-paginator.custom-paginator {
+  display: flex !important;
+}
+
 /* Paginator Styling */
 .custom-paginator {
   background: var(--theme-surface) !important;

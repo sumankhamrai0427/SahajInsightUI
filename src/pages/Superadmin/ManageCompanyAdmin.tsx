@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import ApiServices from "../../services/ApiServices";
 import Tippy from '@tippyjs/react';
 import AutorenewRoundedIcon from "@mui/icons-material/AutorenewRounded";
+import "../../styles/primereact-table.css";
 
 function ManageCompanyAdmin() {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -85,8 +86,8 @@ function ManageCompanyAdmin() {
       body: (row: any) => (
         <span
           className={`px-2 py-1 rounded-full text-xs font-medium ${row.is_active === 1
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
+            ? "bg-green-100 text-green-800"
+            : "bg-red-100 text-red-800"
             }`}
         >
           {row.is_active === 1 ? "Active" : "Inactive"}
@@ -261,6 +262,7 @@ function ManageCompanyAdmin() {
         <DataTable
           value={companyAdmin}
           paginator
+          paginatorClassName="custom-paginator"
           rows={10}
           rowsPerPageOptions={[5, 10, 25, 50]}
           rowGroupMode="subheader"

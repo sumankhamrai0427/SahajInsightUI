@@ -158,9 +158,9 @@ export default function DataProcessing({ files, onRefresh }: Props) {
       if (!userIdentifier) return;
       try {
         const payload = {
-            user_email: userIdentifier,
-            session_id: user?.session_id,
-            created_by: user?.user_id || ""
+          user_email: userIdentifier,
+          session_id: user?.session_id,
+          created_by: user?.user_id || ""
         };
         const res = await ApiServices.getUserWorkspaces(payload);
         if (res.data?.isSuccess) {
@@ -894,14 +894,14 @@ export default function DataProcessing({ files, onRefresh }: Props) {
             onClick={handleRefresh}
             disabled={isRefreshing}
             className={`p-2 rounded-lg transition-all duration-300 flex items-center justify-center
-              ${isRefreshing 
-                ? 'bg-blue-100 text-[#7CA1F3] cursor-not-allowed' 
+              ${isRefreshing
+                ? 'bg-blue-100 text-[#7CA1F3] cursor-not-allowed'
                 : 'hover:bg-blue-50 text-gray-500 hover:text-[#7CA1F3] cursor-pointer'
               }`}
             title="Refresh History"
           >
-            <AutorenewRoundedIcon 
-              sx={{ fontSize: 18 }} 
+            <AutorenewRoundedIcon
+              sx={{ fontSize: 18 }}
               className={`transition-all duration-500 ${isRefreshing ? 'animate-spin' : 'hover:rotate-180'}`}
             />
           </button>
@@ -1105,8 +1105,8 @@ export default function DataProcessing({ files, onRefresh }: Props) {
           disabled={selectedCsvs.length === 0 && selectedWebs.length === 0}
           onClick={handleImportSummary}
           className={`px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg transition-all flex items-center gap-2 ${(selectedCsvs.length === 0 && selectedWebs.length === 0)
-              ? "bg-gray-400 cursor-not-allowed opacity-50"
-              : "bg-gradient-to-r from-blue-500 to-[#7CA1F3] hover:from-blue-600 hover:to-blue-500 cursor-pointer hover:shadow-xl active:scale-95"
+            ? "bg-gray-400 cursor-not-allowed opacity-50"
+            : "bg-gradient-to-r from-blue-500 to-[#7CA1F3] hover:from-blue-600 hover:to-blue-500 cursor-pointer hover:shadow-xl active:scale-95"
             }`}
         >
           Import ({selectedCsvs.length + selectedWebs.length} Selected)
@@ -1211,7 +1211,7 @@ export default function DataProcessing({ files, onRefresh }: Props) {
       {isDetailsModalOpen && selectedRowDetails && !isConfirmSaveModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="w-[1000px] max-w-[95vw] h-[85vh] max-h-[85vh] rounded-2xl shadow-2xl bg-white flex flex-col border overflow-hidden" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
-            
+
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: theme.border }}>
               <div>

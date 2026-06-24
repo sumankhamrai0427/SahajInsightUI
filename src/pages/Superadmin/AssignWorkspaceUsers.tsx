@@ -4,6 +4,7 @@ import { Toast } from "primereact/toast";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { FilterMatchMode } from "primereact/api";
+import "../../styles/primereact-table.css";
 
 export default function AssignWorkspaceUsers() {
   const toast = useRef(null);
@@ -173,6 +174,7 @@ export default function AssignWorkspaceUsers() {
         <DataTable
           value={allUsers}
           paginator
+          paginatorClassName="custom-paginator"
           rows={10}
           rowsPerPageOptions={[5, 10, 25, 50]}
           loading={loading}
