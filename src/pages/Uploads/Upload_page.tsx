@@ -277,6 +277,35 @@ export default function UploadPage() {
     }
   };
 
+  const renderFormattedText = (text: string) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const lines = text.split("\n");
+    return lines.map((line, lineIdx) => {
+      const parts = line.split(urlRegex);
+      return (
+        <div key={lineIdx} className="min-h-[1.2rem] break-words whitespace-pre-wrap">
+          {parts.map((part, partIdx) => {
+            if (part.match(/^https?:\/\//)) {
+              return (
+                <a
+                  key={partIdx}
+                  href={part}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:text-blue-700 underline cursor-pointer break-all font-semibold"
+                >
+                  {part}
+                </a>
+              );
+            }
+            return part;
+          })}
+        </div>
+      );
+    });
+  };
+
   return (
     <div className="w-full rounded-xl p-8">
       <h2
@@ -390,17 +419,20 @@ export default function UploadPage() {
                   color: theme.primaryText
                 }}
               />
-              <textarea
-                value={searchResults}
-                readOnly
-                placeholder="Search result summary will appear here..."
-                className="w-full h-48 min-h-[6rem] p-3 border rounded-xl text-xs resize-y overflow-y-auto focus:outline-none custom-scrollbar"
+              <div
+                className="w-full h-48 min-h-[6rem] p-3 border rounded-xl text-xs overflow-y-auto custom-scrollbar whitespace-pre-wrap select-text text-left"
                 style={{
                   borderColor: theme.border,
                   backgroundColor: theme.surface,
                   color: theme.primaryText
                 }}
-              />
+              >
+                {searchResults ? (
+                  renderFormattedText(searchResults)
+                ) : (
+                  <span className="text-gray-400">Search result summary will appear here...</span>
+                )}
+              </div>
             </div>
           </div>
           {selectedWorkspace === "all" && (
