@@ -439,6 +439,7 @@ const QueryDesignerManage = () => {
     if (activeWorkspace && realWorkspaces.length > 0) {
       fetchWorkspaceFiles();
       fetchWorkspaceSuggestions();
+      fetchSavedQueries(true);
     }
   }, [activeWorkspace, realWorkspaces]);
 
@@ -452,7 +453,12 @@ const QueryDesignerManage = () => {
     setIsLoadingQueries(true);
     setErrorQueries(null);
     try {
-      const payload = { session_id: user?.session_id, created_by: user?.user_id };
+      const wsId = getActiveWorkspaceId();
+      const payload = {
+        session_id: user?.session_id,
+        created_by: user?.user_id,
+        workspace_id: wsId
+      };
       const response = await ApiServices.getSavedQueryResponse(payload);
       if (response.data.isSuccess) {
         setQueries(response.data.data.queries || []);
